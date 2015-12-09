@@ -14,9 +14,9 @@ var Creator = function(router, client){
 };
 
 Creator.prototype = {
-  params: function(config, req, isRaw){
+  params: function(model, req, isRaw){
     var params = {};
-    _.map(config, function(option, key){
+    _.map(model, function(option, key){
       var value = req.body[key] || '';
 
       if(option.children) {
@@ -30,8 +30,8 @@ Creator.prototype = {
     return params;
   },
 
-  href: function(config, collectionKey, collection){
-    _.each(config, function(option, key){
+  href: function(model, collectionKey, collection){
+    _.each(model, function(option, key){
       var childrenCollectionKey,
           parentCollectionKey,
           instanceKey;
@@ -67,7 +67,7 @@ Creator.prototype = {
     return collection;
   },
 
-  getCollection: function(key, config){
+  getCollection: function(key, model){
     var that = this;
     var collectionKey = key + 's';
     /**
@@ -90,7 +90,7 @@ Creator.prototype = {
           return;
         }
 
-        that.href(config, collectionKey, collection);
+        that.href(model, collectionKey, collection);
 
         var offset = Number(req.params.offset || 0),
             limit = Number(req.params.limit || 25),
@@ -110,7 +110,7 @@ Creator.prototype = {
     });
   },
 
-  postInstance: function(key, config){
+  postInstance: function(key, model){
     var that = this;
     var collectionKey = key + 's';
     /**
@@ -119,29 +119,27 @@ Creator.prototype = {
     this.router.post('/'+collectionKey, function(req, res){
       var id,
           key,
-          uniqKeys = _.chain(config)
+          uniqKeys = _.chain(model)
                       .map(function(value, key){
                         return value.uniq ? key : undefined;
                       })
                       .compact()
                       .value(),
           md5 = crypto.createHash('md5'),
-          params = that.params(config, req),
+          params = that.params(model, req),
           process = [],
-          results = validate(config, params);
+          results = validate(model, params);
 
       if( !results.ok ) {
         res.json(results, 400 );
         return;
       }
 
-      md5.update(uniqKeys.map(function(key){
-        return params[key];
-      }).join(':'));
-      id = md5.digest('hex').substr(0,7);
+      id = uniqKeys.map(function(key){
+        return params[key].replace(/[\s\.\/]+/g, '_').toLowerCase();
+      }).join('-');
 
-
-      _.each(config, function(paramConfig, paramKey){
+      _.each(model, function(paramConfig, paramKey){
         var parentCollectionKey;
 
         if(paramConfig.parent) {
@@ -211,7 +209,7 @@ Creator.prototype = {
     });
   },
 
-  getInstance: function(key, config){
+  getInstance: function(key, model){
     var that = this;
     var collectionKey = key + 's';
 
@@ -243,23 +241,23 @@ Creator.prototype = {
           return;
         }
 
-        instance = that.href(config, collectionKey, [instance])[0];
+        instance = that.href(model, collectionKey, [instance])[0];
 
         res.send(instance);
       });
     });
   },
 
-  getChildrenCollection: function(key, config, childPath, paramConfig){
+  getChildrenCollection: function(key, attr, childKey, childModel){
     var that = this;
     var collectionKey = key + 's',
-        childrenCollectionKey = paramConfig.children + 's';
+        childrenCollectionKey = attr.children + 's';
 
     /**
      * Return children collection
      * @return children as collection
      */
-    this.router.get('/'+collectionKey+'/:id/'+childPath, function(req, res){
+    this.router.get('/'+collectionKey+'/:id/'+childKey, function(req, res){
       var id = req.params.id;
 
       async.waterfall([
@@ -282,7 +280,7 @@ Creator.prototype = {
           return;
         }
 
-        that.href(config, childrenCollectionKey, childrenCollection);
+        that.href(childModel, childrenCollectionKey, childrenCollection);
 
         var offset = Number(req.params.offset || 0),
             limit = Number(req.params.limit || 25),
@@ -291,8 +289,8 @@ Creator.prototype = {
               offset: offset,
               limit: limit,
               size: size,
-              first: childrenCollection.length ? '/'+collectionKey+'/'+id+'/'+childPath+'?offset=0&limit='+limit : null,
-              last: childrenCollection.length  ? '/'+collectionKey+'/'+id+'/'+childPath+'?offset='+ (Math.round( size / limit ) * limit) + '&limit='+limit : null,
+              first: childrenCollection.length ? '/'+collectionKey+'/'+id+'/'+childKey+'?offset=0&limit='+limit : null,
+              last: childrenCollection.length  ? '/'+collectionKey+'/'+id+'/'+childKey+'?offset='+ (Math.round( size / limit ) * limit) + '&limit='+limit : null,
               items: childrenCollection
             };
 
@@ -305,7 +303,7 @@ Creator.prototype = {
   },
 
 
-  putInstance: function(key, config){
+  putInstance: function(key, model){
     var that = this;
     var collectionKey = key + 's';
 
@@ -313,7 +311,7 @@ Creator.prototype = {
      * Update instance as full replacement with specified ID
      */
     this.router.put('/' + collectionKey + '/:id', function(req, res){
-      var params = that.params( config, req );
+      var params = that.params( model, req );
 
       async.waterfall([
         function(callback){
@@ -351,7 +349,7 @@ Creator.prototype = {
     });
   },
 
-  postUpdateCollection: function(key, config){
+  postUpdateCollection: function(key, model){
     var that = this;
     var collectionKey = key + 's';
 
@@ -359,7 +357,7 @@ Creator.prototype = {
      * Update instance as partial replacement with specified ID
      */
     this.router.post('/' + collectionKey + '/:id', function(req, res){
-      var params = that.params( config, req, true );
+      var params = that.params( model, req, true );
 
       async.waterfall([
         function(callback){
@@ -399,7 +397,7 @@ Creator.prototype = {
     });
   },
 
-  deleteCollection: function(key, config){
+  deleteCollection: function(key, model){
     var that = this;
     var collectionKey = key + 's';
 
@@ -427,7 +425,7 @@ Creator.prototype = {
 
   },
 
-  deleteInstance: function(key, config){
+  deleteInstance: function(key, model){
     var that = this;
     var collectionKey = key + 's';
 
