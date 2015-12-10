@@ -28,7 +28,7 @@ module.exports = function(options){
     creator.getInstance( key, model );
 
     applyChildCollection(key, scheme, model);
-    creator.postUpdateCollection(key, model);
+    creator.postUpdateInstance(key, model);
     creator.deleteCollection(key, model);
     creator.deleteInstance(key, model);
   }

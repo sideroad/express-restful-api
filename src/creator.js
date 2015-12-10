@@ -349,7 +349,7 @@ Creator.prototype = {
     });
   },
 
-  postUpdateCollection: function(key, model){
+  postUpdateInstance: function(key, model){
     var that = this;
     var collectionKey = key + 's';
 

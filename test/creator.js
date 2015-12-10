@@ -165,7 +165,52 @@ describe('Creator', function () {
     ], function(err){
       done(err);
     });
+  });
 
+  it('should create post update instance routing', function(done) {
+
+    creator.postUpdateInstance('group', config);
+
+    async.waterfall([
+      function(callback){
+        create(callback);
+      },
+      function(callback){
+        request(app)
+          .get('/groups/uxd')
+          .expect(200)
+          .end(function(err, res){
+            res.body.should.have.property('id', 'uxd');
+            res.body.should.have.property('name', 'UXD');
+            res.body.should.have.property('createdAt');
+            res.body.should.have.property('updatedAt');        
+            callback();
+          });
+      },
+      function(callback){
+        request(app)
+          .post('/groups/uxd')
+          .send({name: 'foo'})
+          .expect(200)
+          .end(function(err, res){
+            callback();
+          });
+      },
+      function(callback){
+        request(app)
+          .get('/groups/uxd')
+          .expect(200)
+          .end(function(err, res){
+            res.body.should.have.property('id', 'uxd');
+            res.body.should.have.property('name', 'foo');
+            res.body.should.have.property('createdAt');
+            res.body.should.have.property('updatedAt');        
+            done();
+          });        
+      }
+    ], function(err){
+      done(err);
+    });
 
   });
 });
