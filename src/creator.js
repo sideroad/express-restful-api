@@ -139,6 +139,11 @@ Creator.prototype = {
         return params[key].replace(/[\s\.\/]+/g, '_').toLowerCase();
       }).join('-');
 
+      if(!id){
+        md5.update(new Date().getTime() + ':' + Math.random());
+        id = md5.digest('hex').substr(0,7);
+      }
+
       _.each(model, function(paramConfig, paramKey){
         var parentCollectionKey;
 

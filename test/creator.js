@@ -12,7 +12,8 @@ var assert = require('assert'),
     app = express(),
     config = {
       name: {
-        uniq: true
+        uniq: true,
+        type: 'string'
       }
     },
     req,
