@@ -204,7 +204,7 @@ Creator.prototype = {
           return;
         }
         res.location('/'+collectionKey+'/' + id );
-        res.send(201, null);
+        res.status(201).send(null);
       });
     });
   },
@@ -344,7 +344,7 @@ Creator.prototype = {
           return;
         }
 
-        res.send(200, null);
+        res.status(200).send(null);
       });
     });
   },
@@ -392,7 +392,7 @@ Creator.prototype = {
           return;
         }
 
-        res.send(200, null);
+        res.status(200).send(null);
       });
     });
   },
@@ -419,7 +419,7 @@ Creator.prototype = {
           resutils.error(res, err);
           return;
         }
-        res.send(200, null);
+        res.status(200).send(null);
       });
     });
 
@@ -442,16 +442,16 @@ Creator.prototype = {
         },  
         function(collection, callback){
           collection = _.chain(collection)
-                    .map(function(instance){
-                      if (instance.id === req.body.id) {
-                        return undefined;
-                      }
-                      return instance;
-                    })
-                    .compact()
-                    .value();
+                        .map(function(instance){
+                          if (instance.id === req.params.id) {
+                            return undefined;
+                          }
+                          return instance;
+                        })
+                        .compact()
+                        .value();
 
-          callback(err, collection);
+          callback(null, collection);
         },  
         function(collection, callback){
          that.client.setCollection(collectionKey, collection, function(err){
@@ -466,7 +466,7 @@ Creator.prototype = {
           return;
         }
 
-        res.send(200, null);
+        res.status(200).send(null);
       });
 
     });

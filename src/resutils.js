@@ -1,8 +1,11 @@
 module.exports = {
   error: function(res, err){
-    res.send(err.code || 500, {
-      msg: err.message
-    });
+    res
+      .status(err.code || 500)
+      .json({
+        msg: err.message
+      })
+      .end();
   },
   accessControl: function(res, req){
     var header = req.method === 'OPTIONS' ||
