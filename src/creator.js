@@ -3,7 +3,7 @@ var _ = require('lodash'),
     moment = require('moment'),
     async = require('async'),
     path = require('path'),
-    fs   = require('fs'),
+    fs   = require('fs-extra'),
     crypto = require('crypto'),
     validate = require('./validate'),
     resutils = require('./resutils'),
@@ -27,6 +27,7 @@ Creator.prototype = {
       fs.unlinkSync(source);
     }
 
+    fs.mkdirsSync(doc.dest);
     fs.writeFileSync(path.join( doc.dest, 'apidoc.json'), JSON.stringify(doc));
     fs.writeFileSync(source, this.docs.join('\n'));
 
@@ -50,7 +51,7 @@ Creator.prototype = {
                                '} ' + key + ' ' + 
                                  (attr.desc     ? attr.desc :
                                   attr.instance ? attr.instance + ' id' : '');
-                     }).join('\n * ') + '\n' : '',
+                     }).join('\n * ') : '',
         apiSuccess = doc.method !== 'get' ? '' :
                      doc.collection ? [
                        '@apiSuccess {Number} offset',
@@ -59,7 +60,7 @@ Creator.prototype = {
                        '@apiSuccess {String} first',
                        '@apiSuccess {String} last',
                        '@apiSuccess {Object[]} items Array of '+group+' instance',
-                     ].join('\n * ') + '\n' : 
+                     ].join('\n * ') : 
                      _.map(schemes[doc.group], function(scheme, key){
                        var attr = attrs[doc.group][key] || {};
                        return '@apiSuccess {'+
@@ -68,7 +69,7 @@ Creator.prototype = {
                                '} ' + key + ' ' + 
                                  (attr.desc                      ? attr.desc :
                                   attr.children || attr.instance ? 'linking of ' + ( attr.children || attr.instance ) : '');
-                     }).join('\n * ') + '\n';
+                     }).join('\n * ');
 
     this.docs.push(
       '/**\n'+
