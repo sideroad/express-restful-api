@@ -2,33 +2,34 @@ var express = require('express'),
     router = express.Router(),
     redis = require('redis'),
     _ = require('lodash'),
-    Client = require('./client'),
     Creator = require('./creator'),
+    mongoose = require('mongoose'),
     client;
 
 module.exports = function(options){
   var key,
       model,
       scheme = options.scheme,
-      applyChildCollection = function(key, scheme, model){
+      applyChildren = function(key, scheme, model){
         _.each(model, function(attr, childKey){
           if(attr.children) {
-            creator.getChildrenCollection( key, attr, childKey, scheme[attr.children] );
+            creator.getChildren( key, attr, childKey, scheme[attr.children] );
           }
         });
       };
 
-  client = new Client(options.redis);
-  creator = new Creator(router, client);
+  mongoose.connect(options.mongo);
+  creator = new Creator(mongoose, router);
 
   for( key in scheme ){
     model = scheme[key];
+    creator.model(key, model);
     creator.getCollection( key, model );
     creator.postInstance( key, model );
     creator.getInstance( key, model );
 
-    applyChildCollection(key, scheme, model);
-    creator.postUpdateInstance(key, model);
+    applyChildren(key, scheme, model);
+    creator.postAsUpdate(key, model);
     creator.deleteCollection(key, model);
     creator.deleteInstance(key, model);
   }

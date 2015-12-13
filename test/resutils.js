@@ -75,9 +75,7 @@ describe('error', function () {
         return 'hogehoge.com';
       }
     });
-
-
-
+    
     done();
   });
 });
