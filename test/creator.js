@@ -4,6 +4,7 @@ var assert = require('assert'),
     router = express.Router(),
     redis = require('redis'),
     _ = require('lodash'),
+    fs = require('fs'),
     Creator = require('../src/creator'),
     request = require('supertest'),
     bodyParser = require('body-parser'),
@@ -334,4 +335,28 @@ describe('Creator', function () {
     });
 
   });
+
+  it('should create api doc', function(done) {
+    var path = require('path'),
+        dest = path.join( __dirname, '../doc' );
+
+    creator.createDoc({
+      "name": "RESTful API",
+      "version": "1.0.0",
+      "description": "apidoc example project",
+      "title": "Custom apiDoc browser title",
+      "url" : "https://express-restful-api-sample.herokuapp.com",
+      "sampleUrl": "https://express-restful-api-sample.herokuapp.com",
+      "template": {
+        "withCompare": false,
+        "withGenerator": true
+      },
+      "dest": dest
+    });
+
+    var comments = fs.readFileSync(path.join(dest, 'apicomment.js'));
+    should.exist(comments);
+    done();
+  });
+
 });
