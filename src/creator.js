@@ -45,12 +45,15 @@ Creator.prototype = {
       var value = req.body[key] || '';
 
       if(option.children) {
-        params[key] = value ? value.split(',') : 
-                      isRaw ? undefined : [];
+        params[key] = value ? value.split(',') : [];
       } else {
-        params[key] = value ? value :
-                      isRaw ? undefined : '';      
+        params[key] = value ? value : '';
       }
+
+      if(!params[key] && isRaw) {
+        delete params[key];
+      }
+
     });
     return params;
   },
@@ -169,7 +172,7 @@ Creator.prototype = {
           results = validate(model, params);
 
       if( !results.ok ) {
-        res.json(results, 400 );
+        res.status(400).json( results );
         return;
       }
 

@@ -308,7 +308,7 @@ describe('Creator', function () {
       function(callback){
         request(app)
           .post('/groups/uxd')
-          .send({name: 'foo', owner: 'sideroad'})
+          .send({owner: 'sideroad'})
           .expect(200)
           .end(function(err, res){
             callback();
@@ -320,7 +320,7 @@ describe('Creator', function () {
           .expect(200)
           .end(function(err, res){
             res.body.should.have.property('id', 'uxd');
-            res.body.should.have.property('name', 'foo');
+            res.body.should.have.property('name', 'UXD');
             res.body.should.have.property('createdAt');
             res.body.should.have.property('updatedAt');
             res.body.owner.should.have.property('href', '/peoples/sideroad');
