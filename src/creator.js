@@ -3,19 +3,83 @@ var _ = require('lodash'),
     moment = require('moment'),
     async = require('async'),
     path = require('path'),
-    fs   = require('fs'),
+    fs   = require('fs-extra'),
     crypto = require('crypto'),
     validate = require('./validate'),
-    resutils = require('./resutils');
+    resutils = require('./resutils'),
+    apidoc = require('apidoc');
 
 var Creator = function(mongoose, router){
   this.mongoose = mongoose;
   this.router = router;
   this.models = {};
   this.schemes = {};
+  this.attrs = {};
+  this.docs = [];
 };
 
 Creator.prototype = {
+
+  createDoc: function(doc){
+    var source = path.join( doc.dest, 'apicomment.js' );
+
+    if(fs.existsSync(source)){
+      fs.unlinkSync(source);
+    }
+
+    fs.mkdirsSync(doc.dest);
+    fs.writeFileSync(path.join( doc.dest, 'apidoc.json'), JSON.stringify(doc));
+    fs.writeFileSync(source, this.docs.join('\n'));
+
+    apidoc.createDoc({
+      src: doc.dest,
+      dest: doc.dest,
+      config: doc.dest
+    });
+  },
+
+  doc: function(doc){
+    var group = doc.group.substr(0,1).toUpperCase() + doc.group.substr(1),
+        attrs = this.attrs,
+        schemes = this.schemes,
+        apiParam   = doc.method === 'post' ?
+                     _.map(attrs[doc.group], function(attr, key){
+                       return attr.children ? '' : 
+                              '@apiParam {'+
+                                 (attr.type === 'number' ? 'Number' :
+                                  attr.instance          ? 'Object' : 'String')+
+                               '} ' + key + ' ' + 
+                                 (attr.desc     ? attr.desc :
+                                  attr.instance ? attr.instance + ' id' : '');
+                     }).join('\n * ') : '',
+        apiSuccess = doc.method !== 'get' ? '' :
+                     doc.collection ? [
+                       '@apiSuccess {Number} offset',
+                       '@apiSuccess {Number} limit',
+                       '@apiSuccess {Number} size',
+                       '@apiSuccess {String} first',
+                       '@apiSuccess {String} last',
+                       '@apiSuccess {Object[]} items Array of '+group+' instance',
+                     ].join('\n * ') : 
+                     _.map(schemes[doc.group], function(scheme, key){
+                       var attr = attrs[doc.group][key] || {};
+                       return '@apiSuccess {'+
+                                 (attr.type === 'number'         ? 'Number' :
+                                  attr.children || attr.instance ? 'Object' : 'String')+
+                               '} ' + key + ' ' + 
+                                 (attr.desc                      ? attr.desc :
+                                  attr.children || attr.instance ? 'linking of ' + ( attr.children || attr.instance ) : '');
+                     }).join('\n * ');
+
+    this.docs.push(
+      '/**\n'+
+      ' * @api {'+doc.method+'} '+doc.url+' '+doc.name+'\n'+
+      ' * @apiGroup '+group+ '\n' +
+      ' * ' + apiParam     + '\n' +
+      ' * ' + apiSuccess   + '\n' +
+      ' */\n'
+    );
+  },
 
   model: function(key, model){
     var scheme = {
@@ -31,6 +95,7 @@ Creator.prototype = {
 
     this.models[key] = this.mongoose.model(key, scheme);
     this.schemes[key] = scheme;
+    this.attrs[key] = model;
   },
 
   fields: function(key) {
@@ -45,12 +110,15 @@ Creator.prototype = {
       var value = req.body[key] || '';
 
       if(option.children) {
-        params[key] = value ? value.split(',') : 
-                      isRaw ? undefined : [];
+        params[key] = value ? value.split(',') : [];
       } else {
-        params[key] = value ? value :
-                      isRaw ? undefined : '';      
+        params[key] = value ? value : '';
       }
+
+      if(!params[key] && isRaw) {
+        delete params[key];
+      }
+
     });
     return params;
   },
@@ -63,7 +131,7 @@ Creator.prototype = {
 
   href: function(model, collectionKey, collection){
 
-    var collection = this.toObject(collection);
+    collection = this.toObject(collection);
     _.each(model, function(option, key){
       var childrenCollectionKey,
           parentCollectionKey,
@@ -110,6 +178,13 @@ Creator.prototype = {
      * Return collection
      * @return {List of group object } 
      */
+    this.doc({
+      method: 'get',
+      url : '/'+keys,
+      group: key,
+      name: 'Get collection',
+      collection: true
+    });
     this.router.get('/'+keys, function(req, res){
       var offset = Number(req.params.offset || 0),
           limit = Number(req.params.limit || 25);
@@ -155,6 +230,13 @@ Creator.prototype = {
     /**
      * Create new instance data and return instance URI with 201 status code
      */
+
+    this.doc({
+      method: 'post',
+      url : '/'+keys,
+      group: key,
+      name: 'Create instance'
+    });    
     this.router.post('/'+keys, function(req, res){
       var id,
           uniqKeys = _.chain(model)
@@ -169,7 +251,7 @@ Creator.prototype = {
           results = validate(model, params);
 
       if( !results.ok ) {
-        res.json(results, 400 );
+        res.status(400).json( results );
         return;
       }
 
@@ -254,6 +336,14 @@ Creator.prototype = {
     /**
      * Get specified instance by ID
      */
+    
+    this.doc({
+      method: 'get',
+      url : '/'+keys+'/:id',
+      group: key,
+      name: 'Get instance',
+      model: model      
+    });
     this.router.get('/'+keys + '/:id', function(req, res){
       var id = req.params.id;
 
@@ -301,6 +391,13 @@ Creator.prototype = {
      * Return children collection
      * @return children as collection
      */
+    this.doc({
+      method: 'get',
+      url : '/'+parentKeys+'/:id/'+key,
+      group: parentKey,
+      name: 'Get '+key+' collection',
+      collection: true
+    });
     this.router.get('/'+parentKeys+'/:id/'+key, function(req, res){
       var id = req.params.id;
 
@@ -351,6 +448,12 @@ Creator.prototype = {
     /**
      * Update instance as full replacement with specified ID
      */
+    this.doc({
+      method: 'put',
+      url : '/'+keys+'/:id',
+      group: key,
+      name: 'Update instance'
+    });
     this.router.put('/' + keys + '/:id', function(req, res){
       var params = that.params( model, req );
 
@@ -386,6 +489,12 @@ Creator.prototype = {
     /**
      * Update instance as partial replacement with specified ID
      */
+    this.doc({
+      method: 'post',
+      url : '/'+keys+'/:id',
+      group : key,
+      name: 'Update instance'
+    });    
     this.router.post('/' + keys + '/:id', function(req, res){
       var params = that.params( model, req, true );
 
@@ -422,6 +531,12 @@ Creator.prototype = {
      * Delete all collection
      * @return
      */
+    this.doc({
+      method: 'delete',
+      url : '/'+keys,
+      group: key,
+      name: 'Delete collection'
+    });
     this.router.delete('/'+keys, function(req, res){
       async.waterfall([
         function(callback){
@@ -457,6 +572,12 @@ Creator.prototype = {
      * Delete specified instance
      * @return
      */
+    this.doc({
+      method: 'delete',
+      url : '/'+keys+'/:id',
+      group: key,
+      name: 'Delete instance'
+    });    
     this.router.delete('/'+keys+'/:id', function(req, res){
       async.waterfall([
         function(callback){
