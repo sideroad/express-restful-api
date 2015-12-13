@@ -1,4 +1,2 @@
 node_modules
-tmp/*
-doc/*
-!.gitkeep
+doc
