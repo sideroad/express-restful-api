@@ -4,16 +4,34 @@ var assert = require('assert'),
     router = express.Router(),
     redis = require('redis'),
     _ = require('lodash'),
-    Client = require('../src/client'),
     Creator = require('../src/creator'),
     request = require('supertest'),
     bodyParser = require('body-parser'),
     async = require('async'),
     app = express(),
-    config = {
-      name: {
-        uniq: true,
-        type: 'string'
+    mongoose = require('mongoose'),
+    scheme = {
+      group: {
+        name: {
+          uniq: true
+        },
+        members: {
+          children: 'people'
+        },
+        collaborators: {
+          children: 'people'
+        },
+        owner: {
+          instance: 'people'
+        }
+      },
+      people: {
+        name: {
+          uniq: true
+        },
+        group: {
+          parent: 'group.members'
+        }
       }
     },
     req,
@@ -22,12 +40,16 @@ var assert = require('assert'),
 describe('Creator', function () {
 
   before(function(){
-    client = new Client(process.env.REDIS_URL);
-    creator = new Creator(router, client);
+    mongoose.connect(process.env.MONGO_URL);
+    creator = new Creator(mongoose, router);
     app.use(bodyParser.json());
     app.use(router);
-    creator.deleteCollection('group', config);
-    creator.postInstance('group', config);
+    creator.model('group', scheme.group);
+    creator.model('people', scheme.people);
+    creator.deleteCollection('group', scheme.group);
+    creator.deleteCollection('people', scheme.people);
+    creator.postInstance('group', scheme.group);
+    creator.postInstance('people', scheme.people);
   });
 
   var cleanup = function(callback){
@@ -35,7 +57,12 @@ describe('Creator', function () {
       .delete('/groups')
       .expect(200)
       .end(function(err, res){
-        callback();
+        request(app)
+          .delete('/peoples')
+          .expect(200)
+          .end(function(err, res){
+          callback();
+        });
       });
   };
 
@@ -49,8 +76,40 @@ describe('Creator', function () {
       });
   };
 
+  var createChild = function(callback){
+    request(app)
+      .post('/peoples')
+      .send({
+        name: 'sideroad',
+        group: 'uxd'
+      })
+      .expect(201)
+      .end(function(err, res){
+        callback();
+      });
+  };
+
   beforeEach(function(done){
     cleanup(done);
+  });
+
+  it('should return each fields', function(done){
+    creator.fields('group').should.equal('id createdAt updatedAt name members collaborators owner');
+    creator.fields('people').should.equal('id createdAt updatedAt name group');
+    done();
+  });
+
+  it('should create href', function(done){
+    var collection = creator.href(scheme.group, 'groups', [
+      {
+        id: 'uxd',
+        name: 'UXD',
+        owner: 'sideroad'
+      }
+    ]);
+
+    collection[0].owner.should.have.property('href', '/peoples/sideroad');
+    done();
   });
 
   it('should create delete collection routing', function(done) {
@@ -63,7 +122,7 @@ describe('Creator', function () {
   
   it('should create get collection routing', function(done) {
 
-    creator.getCollection('group', config);
+    creator.getCollection('group', scheme.group);
 
     async.waterfall([
       function(callback){
@@ -95,6 +154,9 @@ describe('Creator', function () {
             res.body.items[0].should.have.property('name', 'UXD');
             res.body.items[0].should.have.property('createdAt');
             res.body.items[0].should.have.property('updatedAt');        
+            res.body.items[0].owner.should.have.property('href', null);
+            res.body.items[0].members.should.have.property('href', '/groups/uxd/members');
+            res.body.items[0].collaborators.should.have.property('href', '/groups/uxd/collaborators');
             callback();
           });
       }
@@ -105,7 +167,7 @@ describe('Creator', function () {
   
   it('should create get instance routing', function(done) {
 
-    creator.getInstance('group', config);
+    creator.getInstance('group', scheme.group);
 
     async.waterfall([
       function(callback){
@@ -129,6 +191,10 @@ describe('Creator', function () {
             res.body.should.have.property('name', 'UXD');
             res.body.should.have.property('createdAt');
             res.body.should.have.property('updatedAt');        
+            res.body.owner.should.have.property('href', null);
+            res.body.members.should.have.property('href', '/groups/uxd/members');
+            res.body.collaborators.should.have.property('href', '/groups/uxd/collaborators');
+
             done();
           });        
       }
@@ -137,10 +203,58 @@ describe('Creator', function () {
     });
 
   });
+
+  it('should create get child collection routing', function(done) {
+
+    creator.getChildren('group', { children: 'people' }, 'members', scheme.people);
+
+    async.waterfall([
+      function(callback){
+        request(app)
+          .get('/groups/uxd/members')
+          .expect(200)
+          .end(function(err, res){
+            res.body.should.have.property('offset', 0);
+            res.body.should.have.property('limit', 25);
+            res.body.should.have.property('first', null);
+            res.body.should.have.property('last',  null);
+            res.body.items.should.have.property('length', 0);
+            callback();
+          });
+      },
+      function(callback){
+        create(callback);
+      },
+      function(callback){
+        createChild(callback);
+      },
+      function(callback){
+        request(app)
+          .get('/groups/uxd/members')
+          .expect(200)
+          .end(function(err, res){
+            res.body.should.have.property('offset', 0);
+            res.body.should.have.property('limit', 25);
+            res.body.should.have.property('first', '/groups/uxd/members?offset=0&limit=25');
+            res.body.should.have.property('last',  '/groups/uxd/members?offset=0&limit=25');
+            res.body.items[0].should.have.property('id', 'sideroad');
+            res.body.items[0].should.have.property('name', 'sideroad');
+            res.body.items[0].group.should.have.property('href', '/groups/uxd');
+            res.body.items[0].should.have.property('createdAt');
+            res.body.items[0].should.have.property('updatedAt');        
+            callback();
+          });
+      }
+    ], function(err){
+      done(err);
+    });
+  });
+
+
   
   it('should create delete instance routing', function(done) {
 
-    creator.deleteInstance('group', config);
+    creator.deleteInstance('group', scheme.group);
 
     async.waterfall([
       function(callback){
@@ -170,7 +284,7 @@ describe('Creator', function () {
 
   it('should create post update instance routing', function(done) {
 
-    creator.postUpdateInstance('group', config);
+    creator.postAsUpdate('group', scheme.group);
 
     async.waterfall([
       function(callback){
@@ -184,14 +298,17 @@ describe('Creator', function () {
             res.body.should.have.property('id', 'uxd');
             res.body.should.have.property('name', 'UXD');
             res.body.should.have.property('createdAt');
-            res.body.should.have.property('updatedAt');        
+            res.body.should.have.property('updatedAt');   
+            res.body.owner.should.have.property('href', null);
+            res.body.members.should.have.property('href', '/groups/uxd/members');
+            res.body.collaborators.should.have.property('href', '/groups/uxd/collaborators');            
             callback();
           });
       },
       function(callback){
         request(app)
           .post('/groups/uxd')
-          .send({name: 'foo'})
+          .send({name: 'foo', owner: 'sideroad'})
           .expect(200)
           .end(function(err, res){
             callback();
@@ -205,7 +322,10 @@ describe('Creator', function () {
             res.body.should.have.property('id', 'uxd');
             res.body.should.have.property('name', 'foo');
             res.body.should.have.property('createdAt');
-            res.body.should.have.property('updatedAt');        
+            res.body.should.have.property('updatedAt');
+            res.body.owner.should.have.property('href', '/peoples/sideroad');
+            res.body.members.should.have.property('href', '/groups/uxd/members');
+            res.body.collaborators.should.have.property('href', '/groups/uxd/collaborators');
             done();
           });        
       }
