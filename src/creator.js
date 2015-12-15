@@ -112,7 +112,7 @@ Creator.prototype = {
   params: function(model, req, isRaw){
     var params = {};
     _.map(model, function(option, key){
-      var value = req.body[key] || '';
+      var value = req.body[key] || req.params[key] || req.query[key] || '';
 
       if(option.children) {
         params[key] = value ? value.split(',') : [];
@@ -120,7 +120,7 @@ Creator.prototype = {
         params[key] = value ? value : '';
       }
 
-      if(!params[key] && isRaw) {
+      if((!params[key] || !params[key].length) && isRaw) {
         delete params[key];
       }
 
