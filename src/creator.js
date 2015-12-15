@@ -13,7 +13,7 @@ var Creator = function(mongoose, router){
   this.mongoose = mongoose;
   this.router = router;
   this.models = {};
-  this.schemes = {};
+  this.schemas = {};
   this.attrs = {};
   this.docs = [];
 };
@@ -41,7 +41,7 @@ Creator.prototype = {
   doc: function(doc){
     var group = doc.group.substr(0,1).toUpperCase() + doc.group.substr(1),
         attrs = this.attrs,
-        schemes = this.schemes,
+        schemas = this.schemas,
         apiParam   = doc.method === 'post' ?
                      _.map(attrs[doc.group], function(attr, key){
                        return attr.children ? '' : 
@@ -61,7 +61,7 @@ Creator.prototype = {
                        '@apiSuccess {String} last',
                        '@apiSuccess {Object[]} items Array of '+group+' instance',
                      ].join('\n * ') : 
-                     _.map(schemes[doc.group], function(scheme, key){
+                     _.map(schemas[doc.group], function(schema, key){
                        var attr = attrs[doc.group][key] || {};
                        return '@apiSuccess {'+
                                  (attr.type === 'number'         ? 'Number' :
@@ -81,25 +81,30 @@ Creator.prototype = {
     );
   },
 
-  model: function(key, model){
-    var scheme = {
-      id: String,
-      createdAt: String,
-      updatedAt: String
-    };
+  model: function(key, attr){
+    var schemaType = {
+          id: String,
+          createdAt: String,
+          updatedAt: String
+        },
+        model;
 
-    _.each(model, function(attr, name){
-      scheme[name] = attr.type === 'number' ? Number :
-                     attr.children          ? Array  : String;
+    _.each(attr, function(attr, name){
+      schemaType[name] = attr.type === 'number' ? Number :
+                         attr.children          ? Array  : String;
     });
 
-    this.models[key] = this.mongoose.model(key, scheme);
-    this.schemes[key] = scheme;
-    this.attrs[key] = model;
+    schema = new this.mongoose.Schema(schemaType);
+    schema.index({ id: 1 });
+
+    model = this.mongoose.model(key, schema);
+    this.models[key] = model;
+    this.schemas[key] = schemaType;
+    this.attrs[key] = attr;
   },
 
   fields: function(key) {
-    return _.map(this.schemes[key], function(attr, name) {
+    return _.map(this.schemas[key], function(attr, name) {
       return name;
     }).join(' ');
   },
@@ -191,7 +196,7 @@ Creator.prototype = {
       
       async.waterfall([
         function(callback){
-          that.models[key].find(null, null, {
+          that.models[key].find(null, fields, {
             skip: offset,
             limit: limit
           }, function(err, collection){
