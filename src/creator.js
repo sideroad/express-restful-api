@@ -192,11 +192,12 @@ Creator.prototype = {
     });
     this.router.get('/'+keys, function(req, res){
       var offset = Number(req.params.offset || 0),
-          limit = Number(req.params.limit || 25);
+          limit = Number(req.params.limit || 25),
+          cond = that.params(model, req, true);
       
       async.waterfall([
         function(callback){
-          that.models[key].find(null, fields, {
+          that.models[key].find(cond, fields, {
             skip: offset,
             limit: limit
           }, function(err, collection){
@@ -408,7 +409,7 @@ Creator.prototype = {
 
       async.waterfall([
         function(callback){
-          var cond = {};
+          var cond = that.params(model, req, true);
           cond[parentKey] = id;
 
           that.models[attr.children].find(cond, fields, function(err, collection){

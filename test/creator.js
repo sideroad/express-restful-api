@@ -67,14 +67,24 @@ describe('Creator', function () {
       });
   };
 
-  var create = function(callback){
+  var createUXD = function(callback){
     request(app)
       .post('/groups')
       .send({name: 'UXD'})
       .expect(201)
       .end(function(err, res){
-        callback();
+        createPlatform(callback);
       });
+  };
+
+  var createPlatform = function(callback){
+    request(app)
+      .post('/groups')
+      .send({name: 'Platform'})
+      .expect(201)
+      .end(function(err, res){
+        callback();
+      });    
   };
 
   var createChild = function(callback){
@@ -118,7 +128,7 @@ describe('Creator', function () {
   });
 
   it('should create post instance routing', function(done) {
-    create(done);
+    createUXD(done);
   });
   
   it('should create get collection routing', function(done) {
@@ -140,7 +150,7 @@ describe('Creator', function () {
           });
       },
       function(callback){
-        create(callback);
+        createUXD(callback);
       },
       function(callback){
         request(app)
@@ -151,6 +161,35 @@ describe('Creator', function () {
             res.body.should.have.property('limit', 25);
             res.body.should.have.property('first', '/groups?offset=0&limit=25');
             res.body.should.have.property('last',  '/groups?offset=0&limit=25');
+            res.body.items.length.should.equal(2);
+            res.body.items[0].should.have.property('id', 'uxd');
+            res.body.items[0].should.have.property('name', 'UXD');
+            res.body.items[0].should.have.property('createdAt');
+            res.body.items[0].should.have.property('updatedAt');        
+            res.body.items[0].owner.should.have.property('href', null);
+            res.body.items[0].members.should.have.property('href', '/groups/uxd/members');
+            res.body.items[0].collaborators.should.have.property('href', '/groups/uxd/collaborators');
+            res.body.items[1].should.have.property('id', 'platform');
+            res.body.items[1].should.have.property('name', 'Platform');
+            res.body.items[1].should.have.property('createdAt');
+            res.body.items[1].should.have.property('updatedAt');        
+            res.body.items[1].owner.should.have.property('href', null);
+            res.body.items[1].members.should.have.property('href', '/groups/platform/members');
+            res.body.items[1].collaborators.should.have.property('href', '/groups/platform/collaborators');
+            callback();
+          });
+      },
+      function(callback){
+        request(app)
+          .get('/groups')
+          .send({name:'UXD'})
+          .expect(200)
+          .end(function(err, res){
+            res.body.should.have.property('offset', 0);
+            res.body.should.have.property('limit', 25);
+            res.body.should.have.property('first', '/groups?offset=0&limit=25');
+            res.body.should.have.property('last',  '/groups?offset=0&limit=25');
+            res.body.items.length.should.equal(1);            
             res.body.items[0].should.have.property('id', 'uxd');
             res.body.items[0].should.have.property('name', 'UXD');
             res.body.items[0].should.have.property('createdAt');
@@ -181,7 +220,7 @@ describe('Creator', function () {
           });
       },
       function(callback){
-        create(callback);
+        createUXD(callback);
       },
       function(callback){
         request(app)
@@ -224,7 +263,7 @@ describe('Creator', function () {
           });
       },
       function(callback){
-        create(callback);
+        createUXD(callback);
       },
       function(callback){
         createChild(callback);
@@ -259,7 +298,7 @@ describe('Creator', function () {
 
     async.waterfall([
       function(callback){
-        create(callback);
+        createUXD(callback);
       },
       function(callback){
         request(app)
@@ -289,7 +328,7 @@ describe('Creator', function () {
 
     async.waterfall([
       function(callback){
-        create(callback);
+        createUXD(callback);
       },
       function(callback){
         request(app)
