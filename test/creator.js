@@ -145,6 +145,8 @@ describe('Creator', function () {
             res.body.should.have.property('limit', 25);
             res.body.should.have.property('first', null);
             res.body.should.have.property('last',  null);
+            res.body.should.have.property('next', null);
+            res.body.should.have.property('prev', null);            
             res.body.items.should.have.property('length', 0);
             callback();
           });
@@ -161,6 +163,8 @@ describe('Creator', function () {
             res.body.should.have.property('limit', 25);
             res.body.should.have.property('first', '/groups?offset=0&limit=25');
             res.body.should.have.property('last',  '/groups?offset=0&limit=25');
+            res.body.should.have.property('next', null);
+            res.body.should.have.property('prev', null);                        
             res.body.items.length.should.equal(2);
             res.body.items[0].should.have.property('id', 'uxd');
             res.body.items[0].should.have.property('name', 'UXD');
@@ -189,6 +193,8 @@ describe('Creator', function () {
             res.body.should.have.property('limit', 25);
             res.body.should.have.property('first', '/groups?offset=0&limit=25');
             res.body.should.have.property('last',  '/groups?offset=0&limit=25');
+            res.body.should.have.property('next', null);
+            res.body.should.have.property('prev', null);                        
             res.body.items.length.should.equal(1);            
             res.body.items[0].should.have.property('id', 'uxd');
             res.body.items[0].should.have.property('name', 'UXD');
@@ -258,6 +264,8 @@ describe('Creator', function () {
             res.body.should.have.property('limit', 25);
             res.body.should.have.property('first', null);
             res.body.should.have.property('last',  null);
+            res.body.should.have.property('next', null);
+            res.body.should.have.property('prev', null);                        
             res.body.items.should.have.property('length', 0);
             callback();
           });
@@ -277,6 +285,8 @@ describe('Creator', function () {
             res.body.should.have.property('limit', 25);
             res.body.should.have.property('first', '/groups/uxd/members?offset=0&limit=25');
             res.body.should.have.property('last',  '/groups/uxd/members?offset=0&limit=25');
+            res.body.should.have.property('next', null);
+            res.body.should.have.property('prev', null);                        
             res.body.items[0].should.have.property('id', 'sideroad');
             res.body.items[0].should.have.property('name', 'sideroad');
             res.body.items[0].group.should.have.property('href', '/groups/uxd');

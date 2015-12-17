@@ -59,6 +59,8 @@ Creator.prototype = {
                        '@apiSuccess {Number} size',
                        '@apiSuccess {String} first',
                        '@apiSuccess {String} last',
+                       '@apiSuccess {String} prev',
+                       '@apiSuccess {String} next',
                        '@apiSuccess {Object[]} items Array of '+group+' instance',
                      ].join('\n * ') : 
                      _.map(schemas[doc.group], function(schema, key){
@@ -191,9 +193,11 @@ Creator.prototype = {
       collection: true
     });
     this.router.get('/'+keys, function(req, res){
-      var offset = Number(req.params.offset || 0),
-          limit = Number(req.params.limit || 25),
-          cond = that.params(model, req, true);
+      var offset = Number(req.query.offset || 0),
+          limit = Number(req.query.limit || 25),
+          cond = that.params(model, req, true),
+          prev = offset - limit,
+          next = offset + limit;
       
       async.waterfall([
         function(callback){
@@ -203,8 +207,13 @@ Creator.prototype = {
           }, function(err, collection){
             callback(err, collection);
           });
+        },
+        function(collection, callback){
+          that.models[key].count(cond, function(err, size){
+            callback(err, collection, size);
+          });
         }
-      ], function done(err, collection){
+      ], function done(err, collection, size){
         resutils.accessControl(res, req);
 
         if(err) {
@@ -214,13 +223,14 @@ Creator.prototype = {
 
         collection = that.href(model, keys, collection);
 
-        var size = collection.length,
-            json = {
+        var json = {
               offset: offset,
               limit: limit,
               size: size,
-              first: collection.length ? '/'+keys+'?offset=0&limit='+limit : null,
-              last: collection.length ? '/'+keys+'?offset='+ (Math.round( size / limit ) * limit) + '&limit='+limit : null,
+              first: size                 ? '/'+keys+'?offset=0&limit='+limit : null,
+              last:  size                 ? '/'+keys+'?offset='+ ( ( Math.ceil( size / limit ) - 1 ) * limit ) + '&limit='+limit : null,
+              prev:  size && offset !== 0 ? '/'+keys+'?offset='+ ( prev < 0 ? 0 : prev ) + '&limit='+limit : null,
+              next:  size && next < size  ? '/'+keys+'?offset='+ next + '&limit='+limit : null,
               items: collection
             };
 
@@ -405,18 +415,32 @@ Creator.prototype = {
       collection: true
     });
     this.router.get('/'+parentKeys+'/:id/'+key, function(req, res){
-      var id = req.params.id;
+      var id = req.params.id,
+          offset = Number(req.query.offset || 0),
+          limit = Number(req.query.limit || 25),
+          prev = offset - limit,
+          next = offset + limit,
+          cond = that.params(model, req, true);
+
+      cond[parentKey] = id;
 
       async.waterfall([
         function(callback){
-          var cond = that.params(model, req, true);
-          cond[parentKey] = id;
 
-          that.models[attr.children].find(cond, fields, function(err, collection){
+          that.models[attr.children].find(cond, fields, {
+            skip: offset,
+            limit: limit            
+          }, function(err, collection){
             callback(err, collection);
           });
+        },
+        function(collection, callback){
+
+          that.models[attr.children].count(cond, function(err, size){
+            callback(err, collection, size);
+          });
         }
-      ], function done(err, collection){
+      ], function done(err, collection, size){
         resutils.accessControl(res, req);
 
         if(err) {
@@ -426,15 +450,14 @@ Creator.prototype = {
 
         collection = that.href(model, keys, collection);
 
-        var offset = Number(req.params.offset || 0),
-            limit = Number(req.params.limit || 25),
-            size = collection.length,
-            json = {
+        var json = {
               offset: offset,
               limit: limit,
               size: size,
-              first: collection.length ? '/'+parentKeys+'/'+id+'/'+key+'?offset=0&limit='+limit : null,
-              last: collection.length  ? '/'+parentKeys+'/'+id+'/'+key+'?offset='+ (Math.round( size / limit ) * limit) + '&limit='+limit : null,
+              first: size                 ? '/'+parentKeys+'/'+id+'/'+key+'?offset=0&limit='+limit : null,
+              last:  size                 ? '/'+parentKeys+'/'+id+'/'+key+'?offset='+ ( ( Math.ceil( size / limit ) - 1 ) * limit ) + '&limit='+limit : null,
+              prev:  size && offset !== 0 ? '/'+parentKeys+'/'+id+'/'+key+'?offset='+ ( prev < 0 ? 0 : prev ) + '&limit='+limit : null,
+              next:  size && next < size  ? '/'+parentKeys+'/'+id+'/'+key+'?offset='+ next + '&limit='+limit : null,
               items: collection
             };
 
