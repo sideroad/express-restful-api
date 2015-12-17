@@ -117,7 +117,7 @@ Creator.prototype = {
       var value = req.body[key] || req.params[key] || req.query[key] || '';
 
       if(option.children) {
-        params[key] = value ? value.split(',') : [];
+        params[key] = value ? value : [];
       } else {
         params[key] = value ? value : '';
       }
