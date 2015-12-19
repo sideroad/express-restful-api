@@ -124,15 +124,11 @@ You can search by range.
 API document will be generated. `dest` should be specified destination of the document.
 See [apidoc](https://github.com/apidoc/apidoc) to check other parameter
 
-
-## API functions
-
-
 ## Example
 [express-restful-api-sample](https://github.com/sideroad/express-restful-api-sample)
 
 ## Influences
-API strongly influenced great architecture (Beautiful REST + JSON APIs)[http://www.slideshare.net/stormpath/rest-jsonapis]
+API strongly influenced great architecture [Beautiful REST + JSON APIs](http://www.slideshare.net/stormpath/rest-jsonapis)
 
 
 
