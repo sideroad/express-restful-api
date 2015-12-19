@@ -7,7 +7,8 @@ var _ = require('lodash'),
     crypto = require('crypto'),
     validate = require('./validate'),
     resutils = require('./resutils'),
-    apidoc = require('apidoc');
+    apidoc = require('apidoc'),
+    pluralize = require('pluralize');
 
 var Creator = function(mongoose, router){
   this.mongoose = mongoose;
@@ -84,15 +85,22 @@ Creator.prototype = {
   },
 
   model: function(key, attr){
-    var schemaType = {
-          id: String,
-          createdAt: String,
-          updatedAt: String
-        },
+    var schemaType = {},
         model;
 
+    _.assign(attr, {
+      id: {},
+      createdAt: {
+        type: 'date'
+      },
+      updatedAt: {
+        type: 'date'
+      }
+    });
+
     _.each(attr, function(attr, name){
-      schemaType[name] = attr.type === 'number' ? Number :
+      schemaType[name] = attr.type === 'number' ? Number : 
+                         attr.type === 'date'   ? Date   :
                          attr.children          ? Array  : String;
     });
 
@@ -100,9 +108,9 @@ Creator.prototype = {
     schema.index({ id: 1 });
 
     model = this.mongoose.model(key, schema);
-    this.models[key] = model;
+    this.models[key]  = model;
     this.schemas[key] = schemaType;
-    this.attrs[key] = attr;
+    this.attrs[key]   = attr;
   },
 
   fields: function(key) {
@@ -117,17 +125,36 @@ Creator.prototype = {
       var value = req.body[key] || req.params[key] || req.query[key] || '';
 
       if(option.children) {
-        params[key] = value ? value : [];
+        value = value ? value : [];
       } else {
-        params[key] = value ? value : '';
+        value = value ? value : '';
       }
 
-      if((!params[key] || !params[key].length) && isRaw) {
-        delete params[key];
+      if(_.isArray(value) ? value.length : value) {
+        params[key] = value;
       }
 
     });
     return params;
+  },
+
+  cond: function(model, req ){
+    var params = this.params( model, req, true ),
+        cond = {};
+
+    _.each(params, function(val, key){
+      var type = model[key].type,
+          search = type === 'number' || 
+                   type === 'date'   ?  'range' : 'wildcard';
+
+      val = val && val.length ? val : '';
+      cond[key] = search === 'wildcard'                          ? new RegExp('^'+val.replace(/\*/g, '.*') + '$') : 
+                  search === 'range' && /^\[.+\,.+\]$/.test(val) ? { 
+                                                                     $gte: val.match(/^\[(.+)\,(.+)\]$/)[1],
+                                                                     $lte: val.match(/^\[(.+)\,(.+)\]$/)[2]
+                                                                   } : val;
+    });
+    return cond;
   },
 
   toObject: function(collection){
@@ -153,7 +180,7 @@ Creator.prototype = {
       }
 
       if( option.parent ){
-        parentCollectionKey = option.parent.split('.')[0] + 's';
+        parentCollectionKey = pluralize(option.parent.split('.')[0]);
         collection = _.map(collection, function(instance){
           instance[key] = {
             href: '/'+parentCollectionKey+'/'+instance[key]
@@ -167,7 +194,7 @@ Creator.prototype = {
         instanceKey = option.instance;
         collection = _.map(collection, function(instance){
           instance[key] = {
-            href: instance[key] ? '/'+instanceKey+'s'+'/'+instance[key] : null
+            href: instance[key] ? '/'+pluralize(instanceKey)+'/'+instance[key] : null
           };
           return instance;
         });
@@ -178,7 +205,7 @@ Creator.prototype = {
 
   getCollection: function(key, model){
     var that = this,
-        keys = key + 's',
+        keys = pluralize(key),
         fields = this.fields(key);
 
     /**
@@ -195,10 +222,10 @@ Creator.prototype = {
     this.router.get('/'+keys, function(req, res){
       var offset = Number(req.query.offset || 0),
           limit = Number(req.query.limit || 25),
-          cond = that.params(model, req, true),
+          cond = that.cond(model, req),
           prev = offset - limit,
           next = offset + limit;
-      
+
       async.waterfall([
         function(callback){
           that.models[key].find(cond, fields, {
@@ -242,7 +269,7 @@ Creator.prototype = {
 
   postInstance: function(key, model){
     var that = this,
-        keys = key + 's';
+        keys = pluralize(key);
     /**
      * Create new instance data and return instance URI with 201 status code
      */
@@ -262,7 +289,7 @@ Creator.prototype = {
                       .compact()
                       .value(),
           md5 = crypto.createHash('md5'),
-          params = that.params(model, req),
+          params = that.params(model, req, true),
           process = [],
           results = validate(model, params);
 
@@ -346,7 +373,7 @@ Creator.prototype = {
 
   getInstance: function(key, model){
     var that = this,
-        keys = key + 's',
+        keys = pluralize(key),
         fields = this.fields(key);
 
     /**
@@ -392,8 +419,8 @@ Creator.prototype = {
 
   getChildren: function(parentKey, attr, key, model){
     var that = this,
-        parentKeys = parentKey + 's',
-        keys = attr.children + 's',
+        parentKeys = pluralize(parentKey),
+        keys = pluralize(attr.children),
         fields = this.fields(key);
 
     /**
@@ -420,8 +447,9 @@ Creator.prototype = {
           limit = Number(req.query.limit || 25),
           prev = offset - limit,
           next = offset + limit,
-          cond = that.params(model, req, true);
+          cond = that.cond(model, req);
 
+      delete cond.id;
       cond[parentKey] = id;
 
       async.waterfall([
@@ -472,7 +500,7 @@ Creator.prototype = {
 
   putAsUpdate: function(key, model){
     var that = this,
-        keys = key + 's';
+        keys = pluralize(key);
 
     /**
      * Update instance as full replacement with specified ID
@@ -513,7 +541,7 @@ Creator.prototype = {
 
   postAsUpdate: function(key, model){
     var that = this,
-        keys = key + 's';
+        keys = pluralize(key);
 
     /**
      * Update instance as partial replacement with specified ID
@@ -554,7 +582,7 @@ Creator.prototype = {
 
   deleteCollection: function(key, model){
     var that = this,
-        keys = key + 's';
+        keys = pluralize(key);
 
     /**
      * Delete all collection
@@ -595,7 +623,7 @@ Creator.prototype = {
 
   deleteInstance: function(key, model){
     var that = this,
-        keys = key + 's';
+        keys = pluralize(key);
 
     /**
      * Delete specified instance

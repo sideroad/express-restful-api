@@ -1,6 +1,6 @@
 {
   "name": "express-restful-api",
-  "version": "2.3.2",
+  "version": "3.0.0",
   "main": "src/index.js",
   "scripts": {
     "test": "mocha test --timeout=20000"
@@ -13,6 +13,7 @@
     "lodash": "^2.4.1",
     "moment": "^2.10.6",
     "mongoose": "^4.3.0",
+    "pluralize": "^1.2.1",
     "redis": "^0.12.1"
   },
   "author": "sideroad",
