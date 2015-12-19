@@ -89,11 +89,50 @@ We can specified parameters below
 |parent   |String        |undefined|If the model have relationship as children, The key should have as `parent` of `${parent model}.${key}`.             |                                |
 |desc     |String        |undefined|API document use the value for description                                                                           |
 
+creator.router creates CRUD below
+- Get instance ( GET )
+- Get collection ( GET )
+- Get child collection of a instance ( GET )
+- Create instance ( POST )
+- Update instance ( POST )
+- Delete instance ( DELETE )
+- Delete collection ( DELETE )
+
+#### Search
+##### type of `string`
+You can use wildcard to get collection.
+
+```
+// Get collection which has name end with road
+...name=*road
+```
+
+##### type of `number` or `date`
+You can search by range.
+
+```
+// Get collection which created the instance between 1, Dec and 5, Dec
+...createdAt=[2015-12-01,2015-12-05]...
+```
+
+```
+// Get collection which has value between 10 and 20
+...age=[10,20]...
+```
+
 ### creator.doc
 API document will be generated. `dest` should be specified destination of the document.
 See [apidoc](https://github.com/apidoc/apidoc) to check other parameter
 
 
+## API functions
+
+
+## Example
+[express-restful-api-sample](https://github.com/sideroad/express-restful-api-sample)
+
+## Influences
+API strongly influenced great architecture (Beautiful REST + JSON APIs)[http://www.slideshare.net/stormpath/rest-jsonapis]
 
 
 
