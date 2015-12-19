@@ -99,12 +99,17 @@ Creator.prototype = {
     });
 
     _.each(attr, function(attr, name){
-      schemaType[name] = attr.type === 'number' ? Number : 
-                         attr.type === 'date'   ? Date   :
-                         attr.children          ? Array  : String;
+      var type = attr.type === 'number' ? Number : 
+                 attr.type === 'date'   ? Date   :
+                 attr.children          ? Array  : String;
+
+      schemaType[name] = {
+        type: type,
+        default: attr.default || null
+      };
     });
 
-    schema = new this.mongoose.Schema(schemaType);
+    schema = new this.mongoose.Schema(schemaType, { minimize: false });
     schema.index({ id: 1 });
 
     model = this.mongoose.model(key, schema);
