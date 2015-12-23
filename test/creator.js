@@ -25,10 +25,12 @@ var assert = require('assert'),
       },
       person: {
         name: {
-          uniq: true
+          uniq: true,
+          text: true
         },
         company: {
-          parent: 'company.members'
+          parent: 'company.members',
+          text: true
         },
         age: {
           type: 'number'
@@ -87,31 +89,34 @@ describe('Creator', function () {
           .expect(201)
           .end(function(err, res){
             callback();
-          }); 
+          });
       });
   };
 
   var createPerson = function(callback){
-    request(app)
-      .post('/people')
-      .send({
+    async.mapSeries([
+      {
         name: 'sideroad',
         company: 'side',
         age: 32
-      })
-      .expect(201)
-      .end(function(err, res){
-        request(app)
-          .post('/people')
-          .send({
-            name: 'roadside',
-            company: 'road'
-          })
-          .expect(201)
-          .end(function(err, res){
-            callback();
-          });
-      });
+      },{
+        name: 'roadside',
+        company: 'road'
+      },{
+        name: 'foobar',
+        company: 'road'
+      }
+    ], function(data, callback){
+      request(app)
+        .post('/people')
+        .send(data)
+        .expect(201)
+        .end(function(err, res){
+          callback(err);
+        });
+    }, function(){
+      callback();
+    })
   };
 
   beforeEach(function(done){
@@ -144,7 +149,7 @@ describe('Creator', function () {
   it('should create post instance routing', function(done) {
     createCompany(done);
   });
-  
+
   it('should create get collection routing', function(done) {
     async.waterfall([
       function(callback){
@@ -228,7 +233,7 @@ describe('Creator', function () {
             res.body.should.have.property('last',  '/people?offset=0&limit=25');
             res.body.should.have.property('next', null);
             res.body.should.have.property('prev', null);
-            res.body.items.length.should.equal(2);
+            res.body.items.length.should.equal(3);
             res.body.items[0].should.have.property('id', 'sideroad');
             res.body.items[0].should.have.property('name', 'sideroad');
             res.body.items[0].should.have.property('age', 32);
@@ -241,13 +246,18 @@ describe('Creator', function () {
             res.body.items[1].should.have.property('createdAt');
             res.body.items[1].should.have.property('updatedAt');
             res.body.items[1].company.should.have.property('href', '/companies/road');
+            res.body.items[2].should.have.property('id', 'foobar');
+            res.body.items[2].should.have.property('name', 'foobar');
+            res.body.items[2].should.have.property('age', null);
+            res.body.items[2].should.have.property('createdAt');
+            res.body.items[2].should.have.property('updatedAt');
+            res.body.items[2].company.should.have.property('href', '/companies/road');
             callback();
           });
       },
       function(callback){
         request(app)
-          .get('/people')
-          .send({age: '[1,31]'})
+          .get('/people?age=[1,31]')
           .expect(200)
           .end(function(err, res){
             res.body.should.have.property('offset', 0);
@@ -262,8 +272,7 @@ describe('Creator', function () {
       },
       function(callback){
         request(app)
-          .get('/people')
-          .send({age: '[1,32]'})
+          .get('/people?age=[1,32]')
           .expect(200)
           .end(function(err, res){
             res.body.should.have.property('offset', 0);
@@ -282,11 +291,68 @@ describe('Creator', function () {
             callback();
           });
       },
+      function(callback){
+        request(app)
+          .get('/people?q=foo')
+          .expect(200)
+          .end(function(err, res){
+            res.body.should.have.property('offset', 0);
+            res.body.should.have.property('limit', 25);
+            res.body.should.have.property('first', '/people?offset=0&limit=25');
+            res.body.should.have.property('last',  '/people?offset=0&limit=25');
+            res.body.should.have.property('next', null);
+            res.body.should.have.property('prev', null);
+            res.body.items.length.should.equal(1);
+            res.body.items[0].should.have.property('id', 'foobar');
+            res.body.items[0].should.have.property('name', 'foobar');
+            res.body.items[0].should.have.property('age', null);
+            res.body.items[0].should.have.property('createdAt');
+            res.body.items[0].should.have.property('updatedAt');
+            res.body.items[0].company.should.have.property('href', '/companies/road');
+            callback();
+          });
+      },
+      function(callback){
+        request(app)
+          .get('/people?q=road')
+          .expect(200)
+          .end(function(err, res){
+            res.body.should.have.property('offset', 0);
+            res.body.should.have.property('limit', 25);
+            res.body.should.have.property('first', '/people?offset=0&limit=25');
+            res.body.should.have.property('last',  '/people?offset=0&limit=25');
+            res.body.should.have.property('next', null);
+            res.body.should.have.property('prev', null);
+            res.body.items.length.should.equal(3);
+
+            res.body.items[0].should.have.property('id', 'sideroad');
+            res.body.items[0].should.have.property('name', 'sideroad');
+            res.body.items[0].should.have.property('age', 32);
+            res.body.items[0].should.have.property('createdAt');
+            res.body.items[0].should.have.property('updatedAt');
+            res.body.items[0].company.should.have.property('href', '/companies/side');
+
+            res.body.items[1].should.have.property('id', 'roadside');
+            res.body.items[1].should.have.property('name', 'roadside');
+            res.body.items[1].should.have.property('age', null);
+            res.body.items[1].should.have.property('createdAt');
+            res.body.items[1].should.have.property('updatedAt');
+            res.body.items[1].company.should.have.property('href', '/companies/road');
+
+            res.body.items[2].should.have.property('id', 'foobar');
+            res.body.items[2].should.have.property('name', 'foobar');
+            res.body.items[2].should.have.property('age', null);
+            res.body.items[2].should.have.property('createdAt');
+            res.body.items[2].should.have.property('updatedAt');
+            res.body.items[2].company.should.have.property('href', '/companies/road');
+            callback();
+          });
+      },
     ], function(err){
       done(err);
     });
   });
-  
+
   it('should create get instance routing', function(done) {
 
     async.waterfall([
@@ -359,6 +425,7 @@ describe('Creator', function () {
             res.body.should.have.property('last',  '/companies/side/members?offset=0&limit=25');
             res.body.should.have.property('next', null);
             res.body.should.have.property('prev', null);
+            res.body.items.length.should.equal(1);
             res.body.items[0].should.have.property('id', 'sideroad');
             res.body.items[0].should.have.property('name', 'sideroad');
             res.body.items[0].company.should.have.property('href', '/companies/side');
@@ -373,7 +440,7 @@ describe('Creator', function () {
   });
 
 
-  
+
   it('should create delete instance routing', function(done) {
 
     creator.deleteInstance('company', scheme.company);
@@ -420,7 +487,7 @@ describe('Creator', function () {
             res.body.should.have.property('id', 'side');
             res.body.should.have.property('name', 'Side');
             res.body.should.have.property('createdAt');
-            res.body.should.have.property('updatedAt');   
+            res.body.should.have.property('updatedAt');
             res.body.president.should.have.property('href', null);
             res.body.members.should.have.property('href', '/companies/side/members');
             callback();

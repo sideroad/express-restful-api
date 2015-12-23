@@ -45,11 +45,11 @@ Creator.prototype = {
         schemas = this.schemas,
         apiParam   = doc.method === 'post' ?
                      _.map(attrs[doc.group], function(attr, key){
-                       return attr.children ? '' : 
+                       return attr.children ? '' :
                               '@apiParam {'+
                                  (attr.type === 'number' ? 'Number' :
                                   attr.instance          ? 'Object' : 'String')+
-                               '} ' + key + ' ' + 
+                               '} ' + key + ' ' +
                                  (attr.desc     ? attr.desc :
                                   attr.instance ? attr.instance + ' id' : '');
                      }).join('\n * ') : '',
@@ -63,13 +63,13 @@ Creator.prototype = {
                        '@apiSuccess {String} prev',
                        '@apiSuccess {String} next',
                        '@apiSuccess {Object[]} items Array of '+group+' instance',
-                     ].join('\n * ') : 
+                     ].join('\n * ') :
                      _.map(schemas[doc.group], function(schema, key){
                        var attr = attrs[doc.group][key] || {};
                        return '@apiSuccess {'+
                                  (attr.type === 'number'         ? 'Number' :
                                   attr.children || attr.instance ? 'Object' : 'String')+
-                               '} ' + key + ' ' + 
+                               '} ' + key + ' ' +
                                  (attr.desc                      ? attr.desc :
                                   attr.children || attr.instance ? 'linking of ' + ( attr.children || attr.instance ) : '');
                      }).join('\n * ');
@@ -99,7 +99,7 @@ Creator.prototype = {
     });
 
     _.each(attr, function(attr, name){
-      var type = attr.type === 'number' ? Number : 
+      var type = attr.type === 'number' ? Number :
                  attr.type === 'date'   ? Date   :
                  attr.children          ? Array  : String;
 
@@ -109,7 +109,9 @@ Creator.prototype = {
       };
     });
 
-    schema = new this.mongoose.Schema(schemaType, { minimize: false });
+    schema = new this.mongoose.Schema(_.assign({
+      q: String
+    }, schemaType), { minimize: false });
     schema.index({ id: 1 });
 
     model = this.mongoose.model(key, schema);
@@ -149,16 +151,21 @@ Creator.prototype = {
 
     _.each(params, function(val, key){
       var type = model[key].type,
-          search = type === 'number' || 
+          search = type === 'number' ||
                    type === 'date'   ?  'range' : 'wildcard';
 
       val = val && val.length ? val : '';
-      cond[key] = search === 'wildcard'                          ? new RegExp('^'+val.replace(/\*/g, '.*') + '$') : 
-                  search === 'range' && /^\[.+\,.+\]$/.test(val) ? { 
+      cond[key] = search === 'wildcard'                          ? new RegExp('^'+val.replace(/\*/g, '.*') + '$') :
+                  search === 'range' && /^\[.+\,.+\]$/.test(val) ? {
                                                                      $gte: val.match(/^\[(.+)\,(.+)\]$/)[1],
                                                                      $lte: val.match(/^\[(.+)\,(.+)\]$/)[2]
                                                                    } : val;
     });
+
+    if(req.query.q) {
+      cond.q = new RegExp( req.query.q );
+    }
+
     return cond;
   },
 
@@ -215,7 +222,7 @@ Creator.prototype = {
 
     /**
      * Return collection
-     * @return {List of group object } 
+     * @return {List of group object }
      */
     this.doc({
       method: 'get',
@@ -284,15 +291,22 @@ Creator.prototype = {
       url : '/'+keys,
       group: key,
       name: 'Create instance'
-    });    
+    });
     this.router.post('/'+keys, function(req, res){
       var id,
+          text = '',
           uniqKeys = _.chain(model)
                       .map(function(value, key){
                         return value.uniq ? key : undefined;
                       })
                       .compact()
                       .value(),
+          texts = _.chain(model)
+                   .map(function(value, key){
+                     return value.text ? key : undefined;
+                   })
+                   .compact()
+                   .value(),
           md5 = crypto.createHash('md5'),
           params = that.params(model, req, true),
           process = [],
@@ -311,6 +325,10 @@ Creator.prototype = {
         md5.update(new Date().getTime() + ':' + Math.random());
         id = md5.digest('hex').substr(0,7);
       }
+
+      text = texts.map(function(key){
+        return params[key];
+      }).join(' ');
 
       // Push key onto parent object
       _.each(model, function(attr){
@@ -351,6 +369,7 @@ Creator.prototype = {
                 _.assign({
                     id: id
                 }, params, {
+                  q: text,
                   createdAt: now,
                   updatedAt: now
                 })
@@ -384,13 +403,13 @@ Creator.prototype = {
     /**
      * Get specified instance by ID
      */
-    
+
     this.doc({
       method: 'get',
       url : '/'+keys+'/:id',
       group: key,
       name: 'Get instance',
-      model: model      
+      model: model
     });
     this.router.get('/'+keys + '/:id', function(req, res){
       var id = req.params.id;
@@ -435,7 +454,7 @@ Creator.prototype = {
      * attr: { children: people }
      * key: members
      * model: {  }
-     * 
+     *
      * Return children collection
      * @return children as collection
      */
@@ -462,7 +481,7 @@ Creator.prototype = {
 
           that.models[attr.children].find(cond, fields, {
             skip: offset,
-            limit: limit            
+            limit: limit
           }, function(err, collection){
             callback(err, collection);
           });
@@ -556,7 +575,7 @@ Creator.prototype = {
       url : '/'+keys+'/:id',
       group : key,
       name: 'Update instance'
-    });    
+    });
     this.router.post('/' + keys + '/:id', function(req, res){
       var params = that.params( model, req, true );
 
@@ -639,7 +658,7 @@ Creator.prototype = {
       url : '/'+keys+'/:id',
       group: key,
       name: 'Delete instance'
-    });    
+    });
     this.router.delete('/'+keys+'/:id', function(req, res){
       async.waterfall([
         function(callback){
