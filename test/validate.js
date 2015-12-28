@@ -4,7 +4,7 @@ var assert = require('assert'),
 
 describe('validate', function () {
 
-  it('should return msg when invalid data is exists', function (done) {
+  it('should return message when invalid data is exists', function (done) {
     var results = {};
 
     results = validate({
@@ -16,7 +16,7 @@ describe('validate', function () {
     });
 
     results.should.not.have.property('ok');
-    results.should.have.property('msg', 'Invalid value: key[number] value[a]');
+    results.should.have.property('number', 'Invalid value: key[number] value[a]');
 
     results = validate({
       number: {
@@ -27,7 +27,7 @@ describe('validate', function () {
     });
 
     results.should.not.have.property('ok');
-    results.should.have.property('msg', 'Invalid value: key[number] value[a]');
+    results.should.have.property('number', 'Invalid value: key[number] value[a]');
 
     results = validate({
       number: {
@@ -38,7 +38,49 @@ describe('validate', function () {
     });
 
     results.should.not.have.property('ok');
-    results.should.have.property('msg', 'Invalid value: key[number] value[null]');
+    results.should.have.property('number', 'Invalid value: key[number] value[null]');
+    done();
+  });
+
+
+  it('should return customized message when invalid data is exists', function (done) {
+    var results = {};
+
+    results = validate({
+      number: {
+        regexp: '^\\d+$',
+        invalid: 'Only number allowed'
+      }
+    }, {
+      number: 'a'
+    });
+
+    results.should.not.have.property('ok');
+    results.should.have.property('number', 'Only number allowed');
+
+    results = validate({
+      number: {
+        regexp: /^\d+$/,
+        invalid: 'Only number allowed'
+      }
+    }, {
+      number: 'a'
+    });
+
+    results.should.not.have.property('ok');
+    results.should.have.property('number', 'Only number allowed');
+
+    results = validate({
+      number: {
+        required: true,
+        invalid: 'Number is required'
+      }
+    }, {
+      number: null
+    });
+
+    results.should.not.have.property('ok');
+    results.should.have.property('number', 'Number is required');
     done();
   });
 
@@ -54,7 +96,7 @@ describe('validate', function () {
     });
 
     results.should.have.property('ok', true);
-    results.should.not.have.property('msg');
+    results.should.not.have.property('number');
 
     results = validate({
       number: {
@@ -65,7 +107,7 @@ describe('validate', function () {
     });
 
     results.should.have.property('ok', true);
-    results.should.not.have.property('msg');
+    results.should.not.have.property('number');
     done();
   });
 });

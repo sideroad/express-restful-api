@@ -27,7 +27,9 @@ app.use('/', creator.router({
       name: {
         uniq: true,
         required: true,
-        regexp: /^[a-zA-Z _]+$/
+        regexp: /^[a-zA-Z _]+$/,
+        desc: "Company name",
+        invalid: "Only alphabets number spaces allowed"
       },
       president: {
         instance: 'persion'
@@ -88,11 +90,13 @@ We can specified parameters below
 |children |String        |undefined|The key will be have relationship with specified key. the value could be have multiple values                        |
 |parent   |String        |undefined|If the model have relationship as children, The key should have as `parent` of `${parent model}.${key}`.             |                                |
 |desc     |String        |undefined|API document use the value for description                                                                           |
+|invalid  |String        |undefined|When the data is invalid, return message                                                                             |
 
 creator.router creates CRUD below
 - Get instance ( GET )
 - Get collection ( GET )
 - Get child collection of a instance ( GET )
+- Validate parameters ( GET )
 - Create instance ( POST )
 - Update instance ( POST )
 - Delete instance ( DELETE )
@@ -129,11 +133,3 @@ See [apidoc](https://github.com/apidoc/apidoc) to check other parameter
 
 ## Influences
 API strongly influenced great architecture [Beautiful REST + JSON APIs](http://www.slideshare.net/stormpath/rest-jsonapis)
-
-
-
-
-
-
-
-

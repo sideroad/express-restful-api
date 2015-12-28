@@ -14,7 +14,9 @@ var assert = require('assert'),
     scheme = {
       company: {
         name: {
-          uniq: true
+          uniq: true,
+          regexp: /^[a-zA-Z 0-9]+$/,
+          invalid: "Only alphabets number spaces allowed"
         },
         members: {
           children: 'person'
@@ -54,6 +56,7 @@ describe('Creator', function () {
     creator.postInstance('company', scheme.company);
     creator.getCollection('company', scheme.company);
     creator.getInstance('company', scheme.company);
+    creator.validate('company', scheme.company);
     creator.getChildren('company', { children: 'person' }, 'members', scheme.person);
 
     creator.deleteCollection('person', scheme.person);
@@ -77,21 +80,72 @@ describe('Creator', function () {
       });
   };
 
+  var validCompanies = [
+    {
+      name: 'Side'
+    },
+    {
+      name: 'Road'
+    }
+  ];
+
+  var invalidCompany = {
+    name: 'Invalid_Name'
+  };
+
   var createCompany = function(callback){
+    async.mapSeries(validCompanies, function(data, callback){
+      request(app)
+        .post('/companies')
+        .send(data)
+        .expect(201)
+        .end(function(err, res){
+          callback(err);
+        });
+    }, function(err){
+      should.not.exist(err);
+      callback();
+    });
+  };
+
+  var createInvalidCompany = function(callback){
     request(app)
       .post('/companies')
-      .send({name: 'Side'})
-      .expect(201)
+      .send(invalidCompany)
+      .expect(400)
       .end(function(err, res){
-        request(app)
-          .post('/companies')
-          .send({name: 'Road'})
-          .expect(201)
-          .end(function(err, res){
-            callback();
-          });
+        res.body.should.have.property('name', 'Only alphabets number spaces allowed')
+        callback(err);
       });
+  }
+
+  var validateCompany = function(callback){
+    async.mapSeries(validCompanies, function(data, callback){
+      request(app)
+        .get('/validate/companies')
+        .send(data)
+        .expect(200)
+        .end(function(err, res){
+          res.body.should.have.property('ok');
+          callback(err);
+        });
+    }, function(err){
+      should.not.exist(err);
+      callback();
+    });
   };
+
+  var validateInvalidCompany = function(callback){
+    request(app)
+      .get('/validate/companies')
+      .send(invalidCompany)
+      .expect(400)
+      .end(function(err, res){
+        should.not.exist(err);
+        res.body.should.have.property('name', 'Only alphabets number spaces allowed')
+        callback(err);
+      });
+  }
 
   var createPerson = function(callback){
     async.mapSeries([
@@ -114,9 +168,10 @@ describe('Creator', function () {
         .end(function(err, res){
           callback(err);
         });
-    }, function(){
+    }, function(err){
+      should.not.exist(err);
       callback();
-    })
+    });
   };
 
   beforeEach(function(done){
@@ -124,8 +179,8 @@ describe('Creator', function () {
   });
 
   it('should return each fields', function(done){
-    creator.fields('company').should.equal('name members president id createdAt updatedAt');
-    creator.fields('person').should.equal('name company age id createdAt updatedAt');
+    creator.fields('company').should.equal('id name members president createdAt updatedAt');
+    creator.fields('person').should.equal('id name company age createdAt updatedAt');
     done();
   });
 
@@ -147,7 +202,15 @@ describe('Creator', function () {
   });
 
   it('should create post instance routing', function(done) {
-    createCompany(done);
+    createCompany(function(){
+      createInvalidCompany(done);
+    });
+  });
+
+  it('should create validate routing', function(done) {
+    validateCompany(function(){
+      validateInvalidCompany(done);
+    });
   });
 
   it('should create get collection routing', function(done) {

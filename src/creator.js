@@ -15,7 +15,8 @@ var Creator = function(mongoose, router){
   this.router = router;
   this.models = {};
   this.schemas = {};
-  this.attrs = {};
+  this.requestAttrs = {};
+  this.responseAttrs = {};
   this.docs = [];
 };
 
@@ -41,10 +42,11 @@ Creator.prototype = {
 
   doc: function(doc){
     var group = doc.group.substr(0,1).toUpperCase() + doc.group.substr(1),
-        attrs = this.attrs,
+        responseAttrs = this.responseAttrs,
+        requestAttrs  = this.requestAttrs,
         schemas = this.schemas,
         apiParam   = doc.method === 'post' ?
-                     _.map(attrs[doc.group], function(attr, key){
+                     _.map(requestAttrs[doc.group], function(attr, key){
                        return attr.children ? '' :
                               '@apiParam {'+
                                  (attr.type === 'number' ? 'Number' :
@@ -65,7 +67,7 @@ Creator.prototype = {
                        '@apiSuccess {Object[]} items Array of '+group+' instance',
                      ].join('\n * ') :
                      _.map(schemas[doc.group], function(schema, key){
-                       var attr = attrs[doc.group][key] || {};
+                       var attr = responseAttrs[doc.group][key] || {};
                        return '@apiSuccess {'+
                                  (attr.type === 'number'         ? 'Number' :
                                   attr.children || attr.instance ? 'Object' : 'String')+
@@ -84,19 +86,19 @@ Creator.prototype = {
     );
   },
 
-  model: function(key, attr){
+  model: function(key, _attr){
     var schemaType = {},
-        model;
-
-    _.assign(attr, {
-      id: {},
-      createdAt: {
-        type: 'date'
-      },
-      updatedAt: {
-        type: 'date'
-      }
-    });
+        model,
+        attr = _.assign({
+          id: {}
+        }, _attr, {
+          createdAt: {
+            type: 'date'
+          },
+          updatedAt: {
+            type: 'date'
+          }
+        });
 
     _.each(attr, function(attr, name){
       var type = attr.type === 'number' ? Number :
@@ -117,7 +119,8 @@ Creator.prototype = {
     model = this.mongoose.model(key, schema);
     this.models[key]  = model;
     this.schemas[key] = schemaType;
-    this.attrs[key]   = attr;
+    this.responseAttrs[key]   = attr;
+    this.requestAttrs[key] = _attr;
   },
 
   fields: function(key) {
@@ -679,6 +682,27 @@ Creator.prototype = {
         res.status(200).send(null);
       });
 
+    });
+  },
+
+  validate: function(key, model){
+    var that = this,
+        keys = pluralize(key);
+    /**
+     * Validate parameters
+     */
+
+    this.doc({
+      method: 'get',
+      url : '/validate/'+keys,
+      group: key,
+      name: 'Validate parameters'
+    });
+    this.router.get('/validate/'+keys, function(req, res){
+      var params = that.params(model, req, true),
+          results = validate(model, params);
+
+      res.status( results.ok ? 200 : 400).json( results );
     });
   }
 
