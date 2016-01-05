@@ -3,7 +3,7 @@ var assert = require('assert'),
     resutils = require('../src/resutils');
 
 describe('error', function () {
-  
+
   it('should send error', function (done) {
     resutils.error({
       status: function(code){
@@ -49,7 +49,7 @@ describe('error', function () {
         header.should.deepEqual({
           'Access-Control-Allow-Origin': 'hogehoge.com',
           'Access-Control-Allow-Methods':'POST, GET, OPTIONS',
-          'Access-Control-Allow-Headers':'Origin, X-Requested-With, Content-Type, Accept',
+          'Access-Control-Allow-Headers':'Origin, X-Requested-With, Content-Type, Accept, X-PINGOTHER',
           'Access-Control-Allow-Credentials': true
         });
       }
@@ -66,7 +66,7 @@ describe('error', function () {
           'Access-Control-Allow-Origin': 'hogehoge.com',
           'Access-Control-Allow-Methods':'POST, GET, OPTIONS',
           'Access-Control-Allow-Headers':'*',
-          'Access-Control-Allow-Credentials': true          
+          'Access-Control-Allow-Credentials': true
         });
       }
     }, {
@@ -75,7 +75,7 @@ describe('error', function () {
         return 'hogehoge.com';
       }
     });
-    
+
     done();
   });
 });

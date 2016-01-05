@@ -13,7 +13,7 @@ module.exports = {
                  req.method === 'PUT' ? {
                   'Access-Control-Allow-Origin': req.get('origin'),
                   'Access-Control-Allow-Methods':'POST, GET, OPTIONS',
-                  'Access-Control-Allow-Headers':'Origin, X-Requested-With, Content-Type, Accept',
+                  'Access-Control-Allow-Headers':'Origin, X-Requested-With, Content-Type, Accept, X-PINGOTHER',
                   'Access-Control-Allow-Credentials': true
                  } : {
                   'Access-Control-Allow-Origin': req.get('origin'),

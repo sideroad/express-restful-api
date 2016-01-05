@@ -333,6 +333,16 @@ Creator.prototype = {
         return params[key];
       }).join(' ');
 
+      // Confirm duplicated data existance
+      process.push(function(callback){
+        that.models[key].findOne({id: id}, function(err, instance){
+          callback(instance ? {
+            message: 'Duplicate id exists',
+            code: 409
+          } : null);
+        });
+      });
+
       // Push key onto parent object
       _.each(model, function(attr){
         if(attr.parent) {
@@ -381,7 +391,6 @@ Creator.prototype = {
           instance.save(function(err){
             callback(err);
           });
-
         }
       ]);
 

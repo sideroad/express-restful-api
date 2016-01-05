@@ -174,6 +174,47 @@ describe('Creator', function () {
     });
   };
 
+  var duplicatedPerson = function(callback){
+    async.mapSeries([
+      {
+        name: 'duplicator',
+        company: 'side',
+        age: 32,
+        index: 1
+      },{
+        name: 'duplicator',
+        company: 'side',
+        age: 32,
+        index: 2
+      }
+    ], function(data, callback){
+      request(app)
+        .post('/people')
+        .send(data)
+        .expect( data.index === 1 ? 201 : 409 )
+        .end(function(err, res){
+          callback( err );
+        });
+    }, function(err){
+      should.not.exist(err);
+      request(app)
+        .get('/people')
+        .expect(200)
+        .end(function(err, res){
+          res.body.should.have.property('offset', 0);
+          res.body.should.have.property('limit', 25);
+          res.body.should.have.property('first', '/people?offset=0&limit=25');
+          res.body.should.have.property('last',  '/people?offset=0&limit=25');
+          res.body.should.have.property('next', null);
+          res.body.should.have.property('prev', null);
+          res.body.items.should.have.property('length', 1);
+          res.body.items[0].should.have.property('name', 'duplicator');
+          res.body.items[0].company.should.have.property('href', '/companies/side');
+          callback();
+        });
+    });
+  };
+
   beforeEach(function(done){
     cleanup(done);
   });
@@ -205,6 +246,10 @@ describe('Creator', function () {
     createCompany(function(){
       createInvalidCompany(done);
     });
+  });
+
+  it('should NOT create instance when duplicated data have post', function(done) {
+    duplicatedPerson(done);
   });
 
   it('should create validate routing', function(done) {
