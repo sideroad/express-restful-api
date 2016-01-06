@@ -8,6 +8,7 @@ module.exports = function(config, params){
         invalid = config[key].invalid;
 
     if( (config[key].required && !value) ||
+        (config[key].uniq     && !value) ||
         (regexp && regexp instanceof RegExp   && !regexp.test(value))   ||
         (regexp && typeof regexp === 'string' && !new RegExp(regexp).test(value)) ) {
       errors[key] = invalid || 'Invalid value: key[' + key + '] value['+value+']';

@@ -56,10 +56,14 @@ Creator.prototype = {
                        return attr.children ? '' :
                               '@apiParam {'+
                                  (attr.type === 'number' ? 'Number' :
+                                  doc.method === 'POST'  ? 'String' :
+                                  doc.method === 'PUT'   ? 'String' :                         
                                   attr.instance          ? 'Object' : 'String')+
-                               '} ' + key + ' ' +
-                                 (attr.desc     ? attr.desc :
-                                  attr.instance ? attr.instance + ' id' : '');
+                               '} ' +
+                               (attr.required || attr.uniq ? key : '[' + key + ']') +
+                               (attr.default  ? '=' + attr.default : '' ) + ' ' +
+                               (attr.desc     ? attr.desc :
+                                attr.instance ? attr.instance + ' id' : '');
                      }).join('\n * ') : '',
         apiSuccess = doc.method !== 'get' ? '' :
                      doc.collection ? [
