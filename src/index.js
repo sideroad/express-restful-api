@@ -25,12 +25,13 @@ module.exports = {
     for( key in scheme ){
       model = scheme[key];
       creator.model(key, model);
-      creator.getCollection( key, model );
-      creator.postInstance( key, model );
       creator.getInstance( key, model );
-
+      creator.getCollection( key, model );
       applyChildren(key, scheme, model);
+
+      creator.postInstance( key, model );
       creator.postAsUpdate(key, model);
+
       creator.deleteCollection(key, model);
       creator.deleteInstance(key, model);
       creator.validate(key, model);

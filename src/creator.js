@@ -8,7 +8,8 @@ var _ = require('lodash'),
     validate = require('./validate'),
     resutils = require('./resutils'),
     apidoc = require('apidoc'),
-    pluralize = require('pluralize');
+    pluralize = require('pluralize'),
+    camelize = require('camelize');
 
 var Creator = function(mongoose, router){
   this.mongoose = mongoose;
@@ -18,12 +19,16 @@ var Creator = function(mongoose, router){
   this.requestAttrs = {};
   this.responseAttrs = {};
   this.docs = [];
+  this.docOrder = [];
 };
 
 Creator.prototype = {
 
-  createDoc: function(doc){
-    var source = path.join( doc.dest, 'apicomment.js' );
+  createDoc: function(_doc){
+    var doc = _.assign({
+          order: this.docOrder
+        }, _doc),
+        source = path.join( doc.dest, 'apicomment.js' );
 
     if(fs.existsSync(source)){
       fs.unlinkSync(source);
@@ -45,6 +50,7 @@ Creator.prototype = {
         responseAttrs = this.responseAttrs,
         requestAttrs  = this.requestAttrs,
         schemas = this.schemas,
+        apiName = camelize( group + doc.name.replace(/\s+/g, '_') ),
         apiParam   = doc.method === 'post' ?
                      _.map(requestAttrs[doc.group], function(attr, key){
                        return attr.children ? '' :
@@ -79,11 +85,13 @@ Creator.prototype = {
     this.docs.push(
       '/**\n'+
       ' * @api {'+doc.method+'} '+doc.url+' '+doc.name+'\n'+
-      ' * @apiGroup '+group+ '\n' +
-      ' * ' + apiParam     + '\n' +
-      ' * ' + apiSuccess   + '\n' +
+      ' * @apiName ' + apiName + '\n' +
+      ' * @apiGroup ' + group  + '\n' +
+      ' * ' + apiParam         + '\n' +
+      ' * ' + apiSuccess       + '\n' +
       ' */\n'
     );
+    this.docOrder.push(apiName);
   },
 
   model: function(key, _attr){
@@ -218,6 +226,40 @@ Creator.prototype = {
     return collection;
   },
 
+  getProcessUpdateParent: function(req, schema, model){
+    var process = [];
+    _.each(schema, function(attr){
+      if(attr.parent) {
+        var key = attr.parent.split('.')[0],
+            child = attr.parent.split('.')[1];
+
+        process = process.concat([
+          function(callback){
+            model.findOne({
+              id: req.body[key]
+            }, function(err, parent){
+                callback(err, parent);
+            });
+          },
+          function(parent, callback){
+
+            if(parent) {
+              var now = moment().format();
+              parent[child].push(id);
+              parent.updatedAt = now;
+              parent.save(function(err){
+                callback(err);
+              });
+            } else {
+              callback(null);
+            }
+          }
+        ]);
+      }
+    });
+    return process;
+  },
+
   getCollection: function(key, model){
     var that = this,
         keys = pluralize(key),
@@ -344,35 +386,7 @@ Creator.prototype = {
       });
 
       // Push key onto parent object
-      _.each(model, function(attr){
-        if(attr.parent) {
-          var key = attr.parent.split('.')[0],
-              child = attr.parent.split('.')[1];
-
-          process = process.concat([
-            function(callback){
-              that.models[key].findOne({
-                id: req.body[key]
-              }, function(err, parent){
-                  callback(err, parent);
-              });
-            },
-            function(parent, callback){
-
-              if(parent) {
-                var now = moment().format();
-                parent[child].push(id);
-                parent.updatedAt = now;
-                parent.save(function(err){
-                  callback(err);
-                });
-              } else {
-                callback(null);
-              }
-            }
-          ]);
-        }
-      });
+      process = process.concat(that.getProcessUpdateParent(req, model, that.models[key]));
 
       process = process.concat([
         function(callback){
@@ -603,7 +617,7 @@ Creator.prototype = {
             callback(err);
           });
         }
-      ], function done(err, instance){
+      ].concat(that.getProcessUpdateParent(req, model, that.models[key])), function done(err, instance){
         resutils.accessControl(res, req);
 
         if(err) {
