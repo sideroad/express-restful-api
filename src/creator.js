@@ -56,8 +56,8 @@ Creator.prototype = {
                        return attr.children ? '' :
                               '@apiParam {'+
                                  (attr.type === 'number' ? 'Number' :
-                                  doc.method === 'POST'  ? 'String' :
-                                  doc.method === 'PUT'   ? 'String' :                         
+                                  doc.method === 'post'  ? 'String' :
+                                  doc.method === 'put'   ? 'String' :                         
                                   attr.instance          ? 'Object' : 'String')+
                                '} ' +
                                (attr.required || attr.uniq ? key : '[' + key + ']') +
