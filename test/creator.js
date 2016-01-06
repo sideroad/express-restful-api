@@ -49,20 +49,21 @@ describe('Creator', function () {
     creator = new Creator(mongoose, router);
     app.use(bodyParser.json());
     app.use(router);
+
     creator.model('company', scheme.company);
-    creator.model('person', scheme.person);
-
-    creator.deleteCollection('company', scheme.company);
-    creator.postInstance('company', scheme.company);
-    creator.getCollection('company', scheme.company);
     creator.getInstance('company', scheme.company);
-    creator.validate('company', scheme.company);
+    creator.getCollection('company', scheme.company);
     creator.getChildren('company', { children: 'person' }, 'members', scheme.person);
+    creator.postInstance('company', scheme.company);
+    creator.deleteCollection('company', scheme.company);
+    creator.validate('company', scheme.company);
 
-    creator.deleteCollection('person', scheme.person);
-    creator.postInstance('person', scheme.person);
-    creator.getCollection('person', scheme.person);
+    creator.model('person', scheme.person);
     creator.getInstance('person', scheme.person);
+    creator.getCollection('person', scheme.person);
+    creator.postInstance('person', scheme.person);
+    creator.deleteCollection('person', scheme.person);
+    creator.validate('person', scheme.person);
 
   });
 
@@ -73,6 +74,22 @@ describe('Creator', function () {
       .end(function(err, res){
         request(app)
           .delete('/people')
+          .expect(200)
+          .end(function(err, res){
+          callback();
+        });
+      });
+  };
+
+  var cleanupWithParameter = function(callback){
+    request(app)
+      .delete('/companies')
+      .send({name: 'Side'})
+      .expect(200)
+      .end(function(err, res){
+        request(app)
+          .delete('/people')
+          .send({name: '*side*'})
           .expect(200)
           .end(function(err, res){
           callback();
@@ -240,6 +257,43 @@ describe('Creator', function () {
 
   it('should create delete collection routing', function(done) {
     cleanup(done);
+  });
+
+  it('should delete collection by parameter', function(done) {
+    createCompany(function(){
+      createPerson(function(){
+        cleanupWithParameter(function(){
+          request(app)
+            .get('/companies')
+            .expect(200)
+            .end(function(err, res){
+              res.body.should.have.property('offset', 0);
+              res.body.should.have.property('limit', 25);
+              res.body.should.have.property('first', '/companies?offset=0&limit=25');
+              res.body.should.have.property('last',  '/companies?offset=0&limit=25');
+              res.body.should.have.property('next', null);
+              res.body.should.have.property('prev', null);
+              res.body.items.should.have.property('length', 1);
+              res.body.items[0].should.have.property('name', 'Road');
+              request(app)
+                .get('/people')
+                .expect(200)
+                .end(function(err, res){
+                  res.body.should.have.property('offset', 0);
+                  res.body.should.have.property('limit', 25);
+                  res.body.should.have.property('first', '/people?offset=0&limit=25');
+                  res.body.should.have.property('last',  '/people?offset=0&limit=25');
+                  res.body.should.have.property('next', null);
+                  res.body.should.have.property('prev', null);
+                  res.body.items.should.have.property('length', 1);
+                  res.body.items[0].should.have.property('name', 'foobar');
+                  res.body.items[0].company.should.have.property('href', '/companies/road');
+                  done();
+                });
+            });
+        });
+      })
+    })
   });
 
   it('should create post instance routing', function(done) {

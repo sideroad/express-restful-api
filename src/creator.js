@@ -51,17 +51,16 @@ Creator.prototype = {
         requestAttrs  = this.requestAttrs,
         schemas = this.schemas,
         apiName = camelize( group + doc.name.replace(/\s+/g, '_') ),
-        apiParam   = doc.method === 'post' ?
+        apiParam   = doc.method === 'post' ||
+                     doc.collection ||
+                     doc.validate ?
                      _.map(requestAttrs[doc.group], function(attr, key){
                        return attr.children ? '' :
                               '@apiParam {'+
-                                 (attr.type === 'number' ? 'Number' :
-                                  doc.method === 'post'  ? 'String' :
-                                  doc.method === 'put'   ? 'String' :                         
-                                  attr.instance          ? 'Object' : 'String')+
+                                 (attr.type === 'number' ? 'Number' : 'String')+
                                '} ' +
-                               (attr.required || attr.uniq ? key : '[' + key + ']') +
-                               (attr.default  ? '=' + attr.default : '' ) + ' ' +
+                               (doc.create && ( attr.required || attr.uniq ) ? key : '[' + key + ']') +
+                               (doc.create && attr.default                   ? '=' + attr.default : '' ) + ' ' +
                                (attr.desc     ? attr.desc :
                                 attr.instance ? attr.instance + ' id' : '');
                      }).join('\n * ') : '',
@@ -339,7 +338,8 @@ Creator.prototype = {
       method: 'post',
       url : '/'+keys,
       group: key,
-      name: 'Create instance'
+      name: 'Create instance',
+      create: true
     });
     this.router.post('/'+keys, function(req, res){
       var id,
@@ -646,13 +646,15 @@ Creator.prototype = {
       method: 'delete',
       url : '/'+keys,
       group: key,
-      name: 'Delete collection'
+      name: 'Delete collection',
+      collection: true
     });
     this.router.delete('/'+keys, function(req, res){
       async.waterfall([
         function(callback){
-          that.models[key].find(function(err, collection){
+          var cond = that.cond(model, req);
 
+          that.models[key].find(cond, function(err, collection){
             async.map(collection, function(instance, callback){
               instance.remove(function(err){
                 callback(err);
@@ -723,7 +725,8 @@ Creator.prototype = {
       method: 'get',
       url : '/validate/'+keys,
       group: key,
-      name: 'Validate parameters'
+      name: 'Validate parameters',
+      validate: true
     });
     this.router.get('/validate/'+keys, function(req, res){
       var params = that.params(model, req, true),
