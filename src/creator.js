@@ -43,6 +43,9 @@ Creator.prototype = {
       dest: doc.dest,
       config: doc.dest
     });
+
+    // apply patch for doc sample ajax
+    fs.copySync( path.join( __dirname, '../patch/send_sample_request.js' ), path.join(doc.dest, 'utils/send_sample_request.js'));
   },
 
   doc: function(doc){
