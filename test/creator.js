@@ -237,8 +237,8 @@ describe('Creator', function () {
   });
 
   it('should return each fields', function(done){
-    creator.fields('company').should.equal('id name members president createdAt updatedAt');
-    creator.fields('person').should.equal('id name company age createdAt updatedAt');
+    creator.fields('company').should.equal('id name members president createdAt updatedAt -_id');
+    creator.fields('person').should.equal('id name company age createdAt updatedAt -_id');
     done();
   });
 
@@ -455,6 +455,27 @@ describe('Creator', function () {
       },
       function(callback){
         request(app)
+          .get('/people?fields=id,name')
+          .expect(200)
+          .end(function(err, res){
+            res.body.should.have.property('offset', 0);
+            res.body.should.have.property('limit', 25);
+            res.body.should.have.property('first', '/people?offset=0&limit=25');
+            res.body.should.have.property('last',  '/people?offset=0&limit=25');
+            res.body.should.have.property('next', null);
+            res.body.should.have.property('prev', null);
+            res.body.items.length.should.equal(3);
+            res.body.items[0].should.have.property('id', 'sideroad');
+            res.body.items[0].should.have.property('name', 'sideroad');
+            res.body.items[0].should.not.have.property('age');
+            res.body.items[0].should.not.have.property('createdAt');
+            res.body.items[0].should.not.have.property('updatedAt');
+            res.body.items[0].should.not.have.property('company');
+            callback();
+          });
+      },
+      function(callback){
+        request(app)
           .get('/people?q=foo')
           .expect(200)
           .end(function(err, res){
@@ -544,6 +565,21 @@ describe('Creator', function () {
 
             done();
           });
+      },
+      function(callback){
+        request(app)
+          .get('/companies/side?fields=id,name')
+          .expect(200)
+          .end(function(err, res){
+            res.body.should.have.property('id', 'side');
+            res.body.should.have.property('name', 'Side');
+            res.body.should.not.have.property('createdAt');
+            res.body.should.not.have.property('updatedAt');
+            res.body.should.not.have.property('president');
+            res.body.should.not.have.property('members');
+
+            done();
+          });
       }
     ], function(err){
       done(err);
@@ -593,6 +629,26 @@ describe('Creator', function () {
             res.body.items[0].company.should.have.property('href', '/companies/side');
             res.body.items[0].should.have.property('createdAt');
             res.body.items[0].should.have.property('updatedAt');
+            callback();
+          });
+      },
+      function(callback){
+        request(app)
+          .get('/companies/side/members?fields=id,name')
+          .expect(200)
+          .end(function(err, res){
+            res.body.should.have.property('offset', 0);
+            res.body.should.have.property('limit', 25);
+            res.body.should.have.property('first', '/companies/side/members?offset=0&limit=25');
+            res.body.should.have.property('last',  '/companies/side/members?offset=0&limit=25');
+            res.body.should.have.property('next', null);
+            res.body.should.have.property('prev', null);
+            res.body.items.length.should.equal(1);
+            res.body.items[0].should.have.property('id', 'sideroad');
+            res.body.items[0].should.have.property('name', 'sideroad');
+            res.body.items[0].should.not.have.property('company');
+            res.body.items[0].should.not.have.property('createdAt');
+            res.body.items[0].should.not.have.property('updatedAt');
             callback();
           });
       }

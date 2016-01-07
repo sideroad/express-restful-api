@@ -137,10 +137,10 @@ Creator.prototype = {
     this.requestAttrs[key] = _attr;
   },
 
-  fields: function(key) {
-    return _.map(this.schemas[key], function(attr, name) {
+  fields: function(key, params) {
+    return _.map( params || this.schemas[key], function(attr, name) {
       return name;
-    }).join(' ');
+    }).join(' ') + ' -_id';
   },
 
   params: function(model, req, isRaw){
@@ -199,11 +199,14 @@ Creator.prototype = {
       var childrenCollectionKey,
           parentCollectionKey,
           instanceKey;
+
       if( option.children ){
         collection = _.map(collection, function(instance){
-          instance[key] = {
-            href: '/'+collectionKey+'/'+instance.id+'/'+key
-          };
+          if( instance.hasOwnProperty(key) ) {
+            instance[key] = {
+              href: '/'+collectionKey+'/'+instance.id+'/'+key
+            };
+          }
           return instance;
         });
       }
@@ -211,9 +214,11 @@ Creator.prototype = {
       if( option.parent ){
         parentCollectionKey = pluralize(option.parent.split('.')[0]);
         collection = _.map(collection, function(instance){
-          instance[key] = {
-            href: '/'+parentCollectionKey+'/'+instance[key]
-          };
+          if( instance.hasOwnProperty(key) ) {
+            instance[key] = {
+              href: '/'+parentCollectionKey+'/'+instance[key]
+            };
+          }
           return instance;
         });
       }
@@ -222,9 +227,11 @@ Creator.prototype = {
 
         instanceKey = option.instance;
         collection = _.map(collection, function(instance){
-          instance[key] = {
-            href: instance[key] ? '/'+pluralize(instanceKey)+'/'+instance[key] : null
-          };
+          if( instance.hasOwnProperty(key) ) {
+            instance[key] = {
+              href: instance[key] ? '/'+pluralize(instanceKey)+'/'+instance[key] : null
+            };
+          }
           return instance;
         });
       }
@@ -291,7 +298,9 @@ Creator.prototype = {
 
       async.waterfall([
         function(callback){
-          that.models[key].find(cond, fields, {
+          var reqFields = req.query.fields;
+
+          that.models[key].find(cond, reqFields ? reqFields.replace(/,/g, ' ') : fields, {
             skip: offset,
             limit: limit
           }, function(err, collection){
@@ -317,10 +326,10 @@ Creator.prototype = {
               offset: offset,
               limit: limit,
               size: size,
-              first: size                 ? '/'+keys+'?offset=0&limit='+limit : null,
-              last:  size                 ? '/'+keys+'?offset='+ ( ( Math.ceil( size / limit ) - 1 ) * limit ) + '&limit='+limit : null,
-              prev:  size && offset !== 0 ? '/'+keys+'?offset='+ ( prev < 0 ? 0 : prev ) + '&limit='+limit : null,
-              next:  size && next < size  ? '/'+keys+'?offset='+ next + '&limit='+limit : null,
+              first: size                 ? '/'+keys+'?offset=0&limit=' + limit : null,
+              last:  size                 ? '/'+keys+'?offset=' + ( ( Math.ceil( size / limit ) - 1 ) * limit ) + '&limit=' + limit : null,
+              prev:  size && offset !== 0 ? '/'+keys+'?offset=' + ( prev < 0 ? 0 : prev ) + '&limit=' + limit : null,
+              next:  size && next < size  ? '/'+keys+'?offset=' + next + '&limit=' + limit : null,
               items: collection
             };
 
@@ -449,9 +458,11 @@ Creator.prototype = {
 
       async.waterfall([
         function(callback){
+          var reqFields = req.query.fields;
+
           that.models[key].findOne({
             id: id
-          }, fields, function( err, instance ){
+          }, reqFields ? reqFields.replace(/,/g, ' ') : fields, function( err, instance ){
             if( !instance ) {
               err = new Error(key+' does not exists');
               err.code = 404;
@@ -511,8 +522,9 @@ Creator.prototype = {
 
       async.waterfall([
         function(callback){
+          var reqFields = req.query.fields;
 
-          that.models[attr.children].find(cond, fields, {
+          that.models[attr.children].find(cond, reqFields ? reqFields.replace(/,/g, ' ') : fields, {
             skip: offset,
             limit: limit
           }, function(err, collection){
