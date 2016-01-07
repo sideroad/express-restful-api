@@ -40,15 +40,17 @@ var assert = require('assert'),
       }
     },
     req,
-    client;
+    client,
+    cors = true;
 
 describe('Creator', function () {
 
   before(function(){
     mongoose.connect(process.env.MONGO_URL);
-    creator = new Creator(mongoose, router);
+    creator = new Creator(mongoose, router, cors);
     app.use(bodyParser.json());
     app.use(router);
+    router.options('*', require('cors')());
 
     creator.model('company', scheme.company);
     creator.getInstance('company', scheme.company);

@@ -9,11 +9,13 @@ var _ = require('lodash'),
     resutils = require('./resutils'),
     apidoc = require('apidoc'),
     pluralize = require('pluralize'),
-    camelize = require('camelize');
+    camelize = require('camelize'),
+    cors = require('cors');
 
-var Creator = function(mongoose, router){
+var Creator = function(mongoose, router, cors){
   this.mongoose = mongoose;
   this.router = router;
+  this.cors = cors;
   this.models = {};
   this.schemas = {};
   this.requestAttrs = {};
@@ -313,7 +315,7 @@ Creator.prototype = {
           });
         }
       ], function done(err, collection, size){
-        resutils.accessControl(res, req);
+        resutils.accessControl(res, req, that.cors);
 
         if(err) {
           resutils.error(res, err);
@@ -425,7 +427,7 @@ Creator.prototype = {
       ]);
 
       async.waterfall(process, function done(err){
-        resutils.accessControl(res, req);
+        resutils.accessControl(res, req, that.cors);
 
         if(err) {
           resutils.error(res, err);
@@ -472,7 +474,7 @@ Creator.prototype = {
           });
         }
       ], function done(err, instance){
-        resutils.accessControl(res, req);
+        resutils.accessControl(res, req, that.cors);
         if(err) {
           resutils.error(res, err);
           return;
@@ -538,7 +540,7 @@ Creator.prototype = {
           });
         }
       ], function done(err, collection, size){
-        resutils.accessControl(res, req);
+        resutils.accessControl(res, req, that.cors);
 
         if(err) {
           resutils.error(res, err);
@@ -596,7 +598,7 @@ Creator.prototype = {
           });
         }
       ], function done(err, instance){
-        resutils.accessControl(res, req);
+        resutils.accessControl(res, req, that.cors);
 
         if(err) {
           resutils.error(res, err);
@@ -637,7 +639,7 @@ Creator.prototype = {
           });
         }
       ].concat(that.getProcessUpdateParent(req, model, that.models[key])), function done(err, instance){
-        resutils.accessControl(res, req);
+        resutils.accessControl(res, req, that.cors);
 
         if(err) {
           resutils.error(res, err);
@@ -680,7 +682,7 @@ Creator.prototype = {
           });
         }
       ], function done(err){
-        resutils.accessControl(res, req);
+        resutils.accessControl(res, req, that.cors);
 
         if(err) {
           resutils.error(res, err);
@@ -716,7 +718,7 @@ Creator.prototype = {
           });
         }
       ], function done(err, instance){
-        resutils.accessControl(res, req);
+        resutils.accessControl(res, req, that.cors);
 
         if(err) {
           resutils.error(res, err);

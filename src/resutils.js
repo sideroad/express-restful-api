@@ -7,7 +7,10 @@ module.exports = {
       })
       .end();
   },
-  accessControl: function(res, req){
+  accessControl: function(res, req, cors){
+    if(!cors) {
+      return;
+    }
     var header = req.method === 'OPTIONS' ||
                  req.method === 'POST'    ||
                  req.method === 'PUT' ? {
@@ -19,7 +22,7 @@ module.exports = {
                   'Access-Control-Allow-Origin': req.get('origin'),
                   'Access-Control-Allow-Methods':'POST, GET, OPTIONS',
                   'Access-Control-Allow-Headers':'*',
-                  'Access-Control-Allow-Credentials': true          
+                  'Access-Control-Allow-Credentials': true
                  };
     res.set(header);
   }

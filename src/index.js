@@ -11,6 +11,7 @@ module.exports = {
     var key,
         model,
         scheme = options.scheme,
+        cors = options.cors,
         applyChildren = function(key, scheme, model){
           _.each(model, function(attr, childKey){
             if(attr.children) {
@@ -20,7 +21,7 @@ module.exports = {
         };
 
     mongoose.connect(options.mongo);
-    creator = new Creator(mongoose, router);
+    creator = new Creator(mongoose, router, cors);
 
     for( key in scheme ){
       model = scheme[key];
@@ -35,6 +36,9 @@ module.exports = {
       creator.deleteCollection(key, model);
       creator.deleteInstance(key, model);
       creator.validate(key, model);
+    }
+    if(cors) {
+      router.options('*', require('cors')());
     }
     this.creator = creator;
     return router;
