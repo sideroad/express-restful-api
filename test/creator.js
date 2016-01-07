@@ -114,7 +114,8 @@ describe('Creator', function () {
     async.mapSeries(validCompanies, function(data, callback){
       request(app)
         .post('/companies')
-        .send(data)
+        .type('json')
+        .send(JSON.stringify(data))
         .expect(201)
         .end(function(err, res){
           callback(err);
@@ -128,7 +129,8 @@ describe('Creator', function () {
   var createInvalidCompany = function(callback){
     request(app)
       .post('/companies')
-      .send(invalidCompany)
+      .type('json')
+      .send(JSON.stringify(invalidCompany))
       .expect(400)
       .end(function(err, res){
         res.body.should.have.property('name', 'Only alphabets number spaces allowed')
@@ -180,7 +182,8 @@ describe('Creator', function () {
     ], function(data, callback){
       request(app)
         .post('/people')
-        .send(data)
+        .type('json')
+        .send(JSON.stringify(data))
         .expect(201)
         .end(function(err, res){
           callback(err);
@@ -207,7 +210,8 @@ describe('Creator', function () {
     ], function(data, callback){
       request(app)
         .post('/people')
-        .send(data)
+        .type('json')
+        .send(JSON.stringify(data))
         .expect( data.index === 1 ? 201 : 409 )
         .end(function(err, res){
           callback( err );
@@ -714,7 +718,8 @@ describe('Creator', function () {
       function(callback){
         request(app)
           .post('/companies/side')
-          .send({president: 'sideroad'})
+          .type('json')
+          .send(JSON.stringify({president: 'sideroad'}))
           .expect(200)
           .end(function(err, res){
             callback();
