@@ -22,6 +22,18 @@ var Creator = function(mongoose, router, cors){
   this.responseAttrs = {};
   this.docs = [];
   this.docOrder = [];
+  if(cors) {
+    router.options('*', require('cors')(
+      cors === true ? {
+        origin: function(origin, callback){
+          callback(null, [origin]);
+        }
+      } :
+      cors.origin ? {
+        origin: cors.origin
+      } : {}
+    ));
+  }
 };
 
 Creator.prototype = {

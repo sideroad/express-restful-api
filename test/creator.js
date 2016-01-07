@@ -50,7 +50,6 @@ describe('Creator', function () {
     creator = new Creator(mongoose, router, cors);
     app.use(bodyParser.json());
     app.use(router);
-    router.options('*', require('cors')());
 
     creator.model('company', scheme.company);
     creator.getInstance('company', scheme.company);

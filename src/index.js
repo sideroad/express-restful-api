@@ -37,9 +37,6 @@ module.exports = {
       creator.deleteInstance(key, model);
       creator.validate(key, model);
     }
-    if(cors) {
-      router.options('*', require('cors')());
-    }
     this.creator = creator;
     return router;
   },
