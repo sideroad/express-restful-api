@@ -27,11 +27,9 @@ var Creator = function(mongoose, router, cors){
       cors === true ? {
         origin: function(origin, callback){
           callback(null, [origin]);
-        }
-      } :
-      cors.origin ? {
-        origin: cors.origin
-      } : {}
+        },
+        credentials: true
+      } : cors
     ));
   }
 };
