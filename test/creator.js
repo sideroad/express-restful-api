@@ -116,7 +116,7 @@ describe('Creator', function () {
       request(app)
         .post('/companies')
         .type('json')
-        .send(JSON.stringify(data))
+        .send(data)
         .expect(201)
         .end(function(err, res){
           callback(err);
@@ -131,7 +131,7 @@ describe('Creator', function () {
     request(app)
       .post('/companies')
       .type('json')
-      .send(JSON.stringify(invalidCompany))
+      .send(invalidCompany)
       .expect(400)
       .end(function(err, res){
         res.body.should.have.property('name', 'Only alphabets number spaces allowed')
@@ -184,7 +184,7 @@ describe('Creator', function () {
       request(app)
         .post('/people')
         .type('json')
-        .send(JSON.stringify(data))
+        .send(data)
         .expect(201)
         .end(function(err, res){
           callback(err);
@@ -212,7 +212,7 @@ describe('Creator', function () {
       request(app)
         .post('/people')
         .type('json')
-        .send(JSON.stringify(data))
+        .send(data)
         .expect( data.index === 1 ? 201 : 409 )
         .end(function(err, res){
           callback( err );
@@ -720,7 +720,7 @@ describe('Creator', function () {
         request(app)
           .post('/companies/side')
           .type('json')
-          .send(JSON.stringify({president: 'sideroad'}))
+          .send({president: 'sideroad'})
           .expect(200)
           .end(function(err, res){
             callback();

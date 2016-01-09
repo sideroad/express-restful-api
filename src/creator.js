@@ -66,19 +66,32 @@ Creator.prototype = {
         requestAttrs  = this.requestAttrs,
         schemas = this.schemas,
         apiName = camelize( group + doc.name.replace(/\s+/g, '_') ),
-        apiParam   = doc.method === 'post' ||
-                     doc.collection ||
-                     doc.validate ?
-                     _.map(requestAttrs[doc.group], function(attr, key){
-                       return attr.children ? '' :
-                              '@apiParam {'+
-                                 (attr.type === 'number' ? 'Number' : 'String')+
-                               '} ' +
-                               (doc.create && ( attr.required || attr.uniq ) ? key : '[' + key + ']') +
-                               (doc.create && attr.default                   ? '=' + attr.default : '' ) + ' ' +
-                               (attr.desc     ? attr.desc :
-                                attr.instance ? attr.instance + ' id' : '');
-                     }).join('\n * ') : '',
+        getApiParam = function(){
+            var params = [];
+
+            if( doc.method === 'post' ||
+                doc.collection ||
+                doc.validate ){
+                params = params.concat(
+                  _.map(requestAttrs[doc.group], function(attr, key){
+                    return attr.children ? '' :
+                           '@apiParam {'+
+                              (attr.type === 'number' ? 'Number' : 'String')+
+                            '} ' +
+                            (doc.create && ( attr.required || attr.uniq ) ? key : '[' + key + ']') +
+                            (doc.create && attr.default                   ? '=' + attr.default : '' ) + ' ' +
+                            (attr.desc     ? attr.desc :
+                             attr.instance ? attr.instance + ' id' : '');
+                  })
+                );
+            }
+
+            if( doc.method === 'get' ) {
+              params.push('@apiParam {String} fields Pertial attribution will be responsed.');
+              params.push('                   Attributions should be separated with comma.');
+            }
+            return params.join('\n * ')
+        },
         apiSuccess = doc.method !== 'get' ? '' :
                      doc.collection ? [
                        '@apiSuccess {Number} offset',
@@ -105,7 +118,7 @@ Creator.prototype = {
       ' * @api {'+doc.method+'} '+doc.url+' '+doc.name+'\n'+
       ' * @apiName ' + apiName + '\n' +
       ' * @apiGroup ' + group  + '\n' +
-      ' * ' + apiParam         + '\n' +
+      ' * ' + getApiParam()    + '\n' +
       ' * ' + apiSuccess       + '\n' +
       ' */\n'
     );
