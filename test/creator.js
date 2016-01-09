@@ -128,15 +128,27 @@ describe('Creator', function () {
   };
 
   var createInvalidCompany = function(callback){
-    request(app)
-      .post('/companies')
-      .type('json')
-      .send(invalidCompany)
-      .expect(400)
-      .end(function(err, res){
-        res.body.should.have.property('name', 'Only alphabets number spaces allowed')
-        callback(err);
-      });
+    async.mapSeries([
+      invalidCompany,
+      {
+        name: ''
+      },
+      {}
+    ], function(data, callback){
+      request(app)
+        .post('/companies')
+        .type('json')
+        .send(data)
+        .expect(400)
+        .end(function(err, res){
+          should.not.exist(err);
+          res.body.should.have.property('name', 'Only alphabets number spaces allowed');
+          callback(err);
+        });
+    }, function(err){
+      should.not.exist(err);
+      callback();
+    });
   }
 
   var createCompanyWithIvalidPresident = function(callback){
@@ -152,6 +164,7 @@ describe('Creator', function () {
         .send(data)
         .expect(400)
         .end(function(err, res){
+          should.not.exist(err);
           res.body.should.have.property('msg', 'Specified ID ( notexist ) does not exists in person');
           callback(err);
         });
@@ -168,6 +181,7 @@ describe('Creator', function () {
         .send(data)
         .expect(200)
         .end(function(err, res){
+          should.not.exist(err);
           res.body.should.have.property('ok');
           callback(err);
         });
@@ -209,6 +223,7 @@ describe('Creator', function () {
         .send(data)
         .expect(201)
         .end(function(err, res){
+          should.not.exist(err);
           callback(err);
         });
     }, function(err){
@@ -231,6 +246,7 @@ describe('Creator', function () {
         .send(data)
         .expect(400)
         .end(function(err, res){
+          should.not.exist(err);
           res.body.should.have.property('msg', 'Specified ID ( notexist ) does not exists in company');
           callback(err);
         });
@@ -260,6 +276,7 @@ describe('Creator', function () {
         .send(data)
         .expect( data.index === 1 ? 201 : 409 )
         .end(function(err, res){
+          should.not.exist(err);
           callback( err );
         });
     }, function(err){
@@ -268,6 +285,7 @@ describe('Creator', function () {
         .get('/people')
         .expect(200)
         .end(function(err, res){
+          should.not.exist(err);
           res.body.should.have.property('offset', 0);
           res.body.should.have.property('limit', 25);
           res.body.should.have.property('first', '/people?offset=0&limit=25');
@@ -317,6 +335,7 @@ describe('Creator', function () {
             .get('/companies')
             .expect(200)
             .end(function(err, res){
+              should.not.exist(err);
               res.body.should.have.property('offset', 0);
               res.body.should.have.property('limit', 25);
               res.body.should.have.property('first', '/companies?offset=0&limit=25');
@@ -329,6 +348,7 @@ describe('Creator', function () {
                 .get('/people')
                 .expect(200)
                 .end(function(err, res){
+                  should.not.exist(err);
                   res.body.should.have.property('offset', 0);
                   res.body.should.have.property('limit', 25);
                   res.body.should.have.property('first', '/people?offset=0&limit=25');
@@ -385,6 +405,7 @@ describe('Creator', function () {
           .get('/companies')
           .expect(200)
           .end(function(err, res){
+            should.not.exist(err);
             res.body.should.have.property('offset', 0);
             res.body.should.have.property('limit', 25);
             res.body.should.have.property('first', null);
@@ -403,6 +424,7 @@ describe('Creator', function () {
           .get('/companies')
           .expect(200)
           .end(function(err, res){
+            should.not.exist(err);
             res.body.should.have.property('offset', 0);
             res.body.should.have.property('limit', 25);
             res.body.should.have.property('first', '/companies?offset=0&limit=25');
@@ -431,6 +453,7 @@ describe('Creator', function () {
           .send({name:'Side'})
           .expect(200)
           .end(function(err, res){
+            should.not.exist(err);
             res.body.should.have.property('offset', 0);
             res.body.should.have.property('limit', 25);
             res.body.should.have.property('first', '/companies?offset=0&limit=25');
@@ -455,6 +478,7 @@ describe('Creator', function () {
           .get('/people')
           .expect(200)
           .end(function(err, res){
+            should.not.exist(err);
             res.body.should.have.property('offset', 0);
             res.body.should.have.property('limit', 25);
             res.body.should.have.property('first', '/people?offset=0&limit=25');
@@ -488,6 +512,7 @@ describe('Creator', function () {
           .get('/people?age=[1,31]')
           .expect(200)
           .end(function(err, res){
+            should.not.exist(err);
             res.body.should.have.property('offset', 0);
             res.body.should.have.property('limit', 25);
             res.body.should.have.property('first', null);
@@ -503,6 +528,7 @@ describe('Creator', function () {
           .get('/people?age=[1,32]')
           .expect(200)
           .end(function(err, res){
+            should.not.exist(err);
             res.body.should.have.property('offset', 0);
             res.body.should.have.property('limit', 25);
             res.body.should.have.property('first', '/people?offset=0&limit=25');
@@ -524,6 +550,7 @@ describe('Creator', function () {
           .get('/people?fields=id,name')
           .expect(200)
           .end(function(err, res){
+            should.not.exist(err);
             res.body.should.have.property('offset', 0);
             res.body.should.have.property('limit', 25);
             res.body.should.have.property('first', '/people?offset=0&limit=25');
@@ -545,6 +572,7 @@ describe('Creator', function () {
           .get('/people?q=foo')
           .expect(200)
           .end(function(err, res){
+            should.not.exist(err);
             res.body.should.have.property('offset', 0);
             res.body.should.have.property('limit', 25);
             res.body.should.have.property('first', '/people?offset=0&limit=25');
@@ -566,6 +594,7 @@ describe('Creator', function () {
           .get('/people?q=road')
           .expect(200)
           .end(function(err, res){
+            should.not.exist(err);
             res.body.should.have.property('offset', 0);
             res.body.should.have.property('limit', 25);
             res.body.should.have.property('first', '/people?offset=0&limit=25');
@@ -610,6 +639,7 @@ describe('Creator', function () {
           .get('/companies/side')
           .expect(404)
           .end(function(err, res){
+            should.not.exist(err);
             res.body.should.have.property('msg', 'company does not exists');
             callback();
           });
@@ -622,6 +652,7 @@ describe('Creator', function () {
           .get('/companies/side')
           .expect(200)
           .end(function(err, res){
+            should.not.exist(err);
             res.body.should.have.property('id', 'side');
             res.body.should.have.property('name', 'Side');
             res.body.should.have.property('createdAt');
@@ -637,6 +668,7 @@ describe('Creator', function () {
           .get('/companies/side?fields=id,name')
           .expect(200)
           .end(function(err, res){
+            should.not.exist(err);
             res.body.should.have.property('id', 'side');
             res.body.should.have.property('name', 'Side');
             res.body.should.not.have.property('createdAt');
@@ -662,6 +694,7 @@ describe('Creator', function () {
           .get('/companies/side/members')
           .expect(200)
           .end(function(err, res){
+            should.not.exist(err);
             res.body.should.have.property('offset', 0);
             res.body.should.have.property('limit', 25);
             res.body.should.have.property('first', null);
@@ -683,6 +716,7 @@ describe('Creator', function () {
           .get('/companies/side/members')
           .expect(200)
           .end(function(err, res){
+            should.not.exist(err);
             res.body.should.have.property('offset', 0);
             res.body.should.have.property('limit', 25);
             res.body.should.have.property('first', '/companies/side/members?offset=0&limit=25');
@@ -703,6 +737,7 @@ describe('Creator', function () {
           .get('/companies/side/members?fields=id,name')
           .expect(200)
           .end(function(err, res){
+            should.not.exist(err);
             res.body.should.have.property('offset', 0);
             res.body.should.have.property('limit', 25);
             res.body.should.have.property('first', '/companies/side/members?offset=0&limit=25');
@@ -738,6 +773,7 @@ describe('Creator', function () {
           .delete('/companies/side')
           .expect(200)
           .end(function(err, res){
+            should.not.exist(err);
             callback();
           });
       },
@@ -746,6 +782,7 @@ describe('Creator', function () {
           .get('/companies/side')
           .expect(404)
           .end(function(err, res){
+            should.not.exist(err);
             res.body.should.have.property('msg', 'company does not exists');
             callback();
           });
@@ -768,6 +805,7 @@ describe('Creator', function () {
           .get('/companies/side')
           .expect(200)
           .end(function(err, res){
+            should.not.exist(err);
             res.body.should.have.property('id', 'side');
             res.body.should.have.property('name', 'Side');
             res.body.should.have.property('createdAt');
@@ -778,12 +816,17 @@ describe('Creator', function () {
           });
       },
       function(callback){
+        createPerson(callback);
+      },
+      function(callback){
         request(app)
           .post('/companies/side')
           .type('json')
           .send({president: 'sideroad'})
           .expect(200)
           .end(function(err, res){
+            should.not.exist(err);
+            res.body.should.not.have.property('msg');
             callback();
           });
       },
@@ -792,6 +835,61 @@ describe('Creator', function () {
           .get('/companies/side')
           .expect(200)
           .end(function(err, res){
+            should.not.exist(err);
+            res.body.should.have.property('id', 'side');
+            res.body.should.have.property('name', 'Side');
+            res.body.should.have.property('createdAt');
+            res.body.should.have.property('updatedAt');
+            res.body.president.should.have.property('href', '/people/sideroad');
+            res.body.members.should.have.property('href', '/companies/side/members');
+            done();
+          });
+      },
+      function(callback){
+        request(app)
+          .post('/companies/side')
+          .type('json')
+          .send({name: ''})
+          .expect(400)
+          .end(function(err, res){
+            should.not.exist(err);
+            res.body.should.have.property('msg');
+            callback();
+          });
+      },
+      function(callback){
+        request(app)
+          .get('/companies/side')
+          .expect(200)
+          .end(function(err, res){
+            should.not.exist(err);
+            res.body.should.have.property('id', 'side');
+            res.body.should.have.property('name', 'Side');
+            res.body.should.have.property('createdAt');
+            res.body.should.have.property('updatedAt');
+            res.body.president.should.have.property('href', '/people/sideroad');
+            res.body.members.should.have.property('href', '/companies/side/members');
+            done();
+          });
+      },
+      function(callback){
+        request(app)
+          .post('/companies/side')
+          .type('json')
+          .send({president: 'notexist'})
+          .expect(400)
+          .end(function(err, res){
+            should.not.exist(err);
+            res.body.should.have.property('msg');
+            callback();
+          });
+      },
+      function(callback){
+        request(app)
+          .get('/companies/side')
+          .expect(200)
+          .end(function(err, res){
+            should.not.exist(err);
             res.body.should.have.property('id', 'side');
             res.body.should.have.property('name', 'Side');
             res.body.should.have.property('createdAt');

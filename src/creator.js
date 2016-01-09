@@ -87,7 +87,7 @@ Creator.prototype = {
             }
 
             if( doc.method === 'get' ) {
-              params.push('@apiParam {String} fields Pertial attribution will be responsed.');
+              params.push('@apiParam {String} [fields] Pertial attribution will be responsed.');
               params.push('                   Attributions should be separated with comma.');
             }
             return params.join('\n * ')
@@ -359,7 +359,7 @@ Creator.prototype = {
         function(callback){
           var reqFields = req.query.fields;
 
-          that.models[key].find(cond, reqFields ? reqFields.replace(/,/g, ' ') : fields, {
+          that.models[key].find(cond, reqFields ? reqFields.replace(/,/g, ' ') + ' -_id' : fields, {
             skip: offset,
             limit: limit
           }, function(err, collection){
@@ -438,7 +438,8 @@ Creator.prototype = {
       }
 
       id = uniqKeys.map(function(key){
-        return params[key].replace(/[\s\.\/]+/g, '_').toLowerCase();
+        var val = params[key];
+        return String( val != null ? val : '' ).replace(/[\s\.\/]+/g, '_').toLowerCase();
       }).join('-');
 
       if(!id){
@@ -524,7 +525,7 @@ Creator.prototype = {
 
           that.models[key].findOne({
             id: id
-          }, reqFields ? reqFields.replace(/,/g, ' ') : fields, function( err, instance ){
+          }, reqFields ? reqFields.replace(/,/g, ' ') + ' -_id' : fields, function( err, instance ){
             if( !instance ) {
               err = new Error(key+' does not exists');
               err.code = 404;
@@ -586,7 +587,7 @@ Creator.prototype = {
         function(callback){
           var reqFields = req.query.fields;
 
-          that.models[attr.children].find(cond, reqFields ? reqFields.replace(/,/g, ' ') : fields, {
+          that.models[attr.children].find(cond, reqFields ? reqFields.replace(/,/g, ' ') + ' -_id' : fields, {
             skip: offset,
             limit: limit
           }, function(err, collection){
@@ -684,21 +685,29 @@ Creator.prototype = {
       name: 'Update instance'
     });
     this.router.post('/' + keys + '/:id', function(req, res){
-      var params = that.params( model, req, true );
+      var params = that.params( model, req, true ),
+          results = validate(model, params, true);
 
-      async.waterfall([
-        function(callback){
-          var now = moment().format();
+      if( !results.ok ) {
+        res.status(400).json( results );
+        return;
+      }
 
-          that.models[key].findOneAndUpdate({
-            id: req.params.id
-          }, _.assign(params, {
-                updatedAt: now
-          }), function(err, instance){
-            callback(err);
-          });
-        }
-      ].concat(that.getProcessUpdateParent(req, model, that.models[key])), function done(err, instance){
+      async.waterfall(
+        // Confirm parent, instance data existance
+        that.validateRelatedDataExistance(req, model).concat([
+          function(callback){
+            var now = moment().format();
+
+            that.models[key].findOneAndUpdate({
+              id: req.params.id
+            }, _.assign(params, {
+                  updatedAt: now
+            }), function(err, instance){
+              callback(err);
+            });
+          }
+        ]).concat(that.getProcessUpdateParent(req, model, that.models[key])), function done(err, instance){
         resutils.accessControl(res, req, that.cors);
 
         if(err) {
