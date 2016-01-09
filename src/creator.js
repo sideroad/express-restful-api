@@ -264,6 +264,40 @@ Creator.prototype = {
     return collection;
   },
 
+  validateRelatedDataExistance: function(req, schema){
+    var process = [],
+        that = this;
+
+    _.each(schema, function(attr, name){
+      var id,
+          key;
+
+      if(attr.parent) {
+        key = attr.parent.split('.')[0];
+      }
+      if(attr.instance) {
+        key = attr.instance;
+      }
+      id = req.body[name];
+      if( key && id ) {
+        process.push(
+          function(callback){
+            that.models[key].findOne({
+              id: id
+            }, function(err, instance){
+              if( !instance ) {
+                err = new Error('Specified ID ( ' + id + ' ) does not exists in ' + key);
+                err.code = 400;
+              }
+              callback(err);
+            });
+          }
+        );
+      }
+    });
+    return process;
+  },
+
   getProcessUpdateParent: function(req, schema, model){
     var process = [];
     _.each(schema, function(attr){
@@ -425,6 +459,9 @@ Creator.prototype = {
           } : null);
         });
       });
+
+      // Confirm parent, instance data existance
+      process = process.concat(that.validateRelatedDataExistance(req, model));
 
       // Push key onto parent object
       process = process.concat(that.getProcessUpdateParent(req, model, that.models[key]));

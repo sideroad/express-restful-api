@@ -139,6 +139,28 @@ describe('Creator', function () {
       });
   }
 
+  var createCompanyWithIvalidPresident = function(callback){
+    async.mapSeries([
+      {
+        name: 'sideroad',
+        president: 'notexist'
+      }
+    ], function(data, callback){
+      request(app)
+        .post('/companies')
+        .type('json')
+        .send(data)
+        .expect(400)
+        .end(function(err, res){
+          res.body.should.have.property('msg', 'Specified ID ( notexist ) does not exists in person');
+          callback(err);
+        });
+    }, function(err){
+      should.not.exist(err);
+      callback();
+    });
+  };
+
   var validateCompany = function(callback){
     async.mapSeries(validCompanies, function(data, callback){
       request(app)
@@ -187,6 +209,29 @@ describe('Creator', function () {
         .send(data)
         .expect(201)
         .end(function(err, res){
+          callback(err);
+        });
+    }, function(err){
+      should.not.exist(err);
+      callback();
+    });
+  };
+
+  var createPersonWithInvalidCompany = function(callback){
+    async.mapSeries([
+      {
+        name: 'sideroad',
+        company: 'notexist',
+        age: 32
+      }
+    ], function(data, callback){
+      request(app)
+        .post('/people')
+        .type('json')
+        .send(data)
+        .expect(400)
+        .end(function(err, res){
+          res.body.should.have.property('msg', 'Specified ID ( notexist ) does not exists in company');
           callback(err);
         });
     }, function(err){
@@ -307,8 +352,24 @@ describe('Creator', function () {
     });
   });
 
+  it('should NOT create instance when instance data does not exists', function(done) {
+    createCompany(function(){
+      createPerson(function(){
+        createCompanyWithIvalidPresident(done);
+      });
+    });
+  });
+
+  it('should NOT create instance when parent data does not exists', function(done) {
+    createCompany(function(){
+      createPersonWithInvalidCompany(done);
+    });
+  });
+
   it('should NOT create instance when duplicated data have post', function(done) {
-    duplicatedPerson(done);
+    createCompany(function(){
+      duplicatedPerson(done);
+    });
   });
 
   it('should create validate routing', function(done) {
