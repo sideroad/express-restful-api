@@ -12,9 +12,10 @@ var _ = require('lodash'),
     camelize = require('camelize'),
     cors = require('cors');
 
-var Creator = function(mongoose, router, cors){
+var Creator = function(mongoose, router, cors, prefix){
   this.mongoose = mongoose;
   this.router = router;
+  this.prefix = prefix || '';
   this.cors = cors;
   this.models = {};
   this.schemas = {};
@@ -218,7 +219,7 @@ Creator.prototype = {
   },
 
   href: function(model, collectionKey, collection){
-
+    var prefix = this.prefix;
     collection = this.toObject(collection);
     _.each(model, function(option, key){
       var childrenCollectionKey,
@@ -229,7 +230,7 @@ Creator.prototype = {
         collection = _.map(collection, function(instance){
           if( instance.hasOwnProperty(key) ) {
             instance[key] = {
-              href: '/'+collectionKey+'/'+instance.id+'/'+key
+              href: prefix + '/'+collectionKey+'/'+instance.id+'/'+key
             };
           }
           return instance;
@@ -241,7 +242,7 @@ Creator.prototype = {
         collection = _.map(collection, function(instance){
           if( instance.hasOwnProperty(key) ) {
             instance[key] = {
-              href: '/'+parentCollectionKey+'/'+instance[key]
+              href: prefix + '/'+parentCollectionKey+'/'+instance[key]
             };
           }
           return instance;
@@ -254,7 +255,7 @@ Creator.prototype = {
         collection = _.map(collection, function(instance){
           if( instance.hasOwnProperty(key) ) {
             instance[key] = {
-              href: instance[key] ? '/'+pluralize(instanceKey)+'/'+instance[key] : null
+              href: instance[key] ? prefix + '/'+pluralize(instanceKey)+'/'+instance[key] : null
             };
           }
           return instance;
@@ -335,7 +336,8 @@ Creator.prototype = {
   getCollection: function(key, model){
     var that = this,
         keys = pluralize(key),
-        fields = this.fields(key);
+        fields = this.fields(key),
+        prefix = this.prefix;
 
     /**
      * Return collection
@@ -343,12 +345,12 @@ Creator.prototype = {
      */
     this.doc({
       method: 'get',
-      url : '/'+keys,
+      url : prefix + '/'+keys,
       group: key,
       name: 'Get collection',
       collection: true
     });
-    this.router.get('/'+keys, function(req, res){
+    this.router.get(prefix + '/'+keys, function(req, res){
       var offset = Number(req.query.offset || 0),
           limit = Number(req.query.limit || 25),
           cond = that.cond(model, req),
@@ -385,10 +387,10 @@ Creator.prototype = {
               offset: offset,
               limit: limit,
               size: size,
-              first: size                 ? '/'+keys+'?offset=0&limit=' + limit : null,
-              last:  size                 ? '/'+keys+'?offset=' + ( ( Math.ceil( size / limit ) - 1 ) * limit ) + '&limit=' + limit : null,
-              prev:  size && offset !== 0 ? '/'+keys+'?offset=' + ( prev < 0 ? 0 : prev ) + '&limit=' + limit : null,
-              next:  size && next < size  ? '/'+keys+'?offset=' + next + '&limit=' + limit : null,
+              first: size                 ? prefix + '/'+keys+'?offset=0&limit=' + limit : null,
+              last:  size                 ? prefix + '/'+keys+'?offset=' + ( ( Math.ceil( size / limit ) - 1 ) * limit ) + '&limit=' + limit : null,
+              prev:  size && offset !== 0 ? prefix + '/'+keys+'?offset=' + ( prev < 0 ? 0 : prev ) + '&limit=' + limit : null,
+              next:  size && next < size  ? prefix + '/'+keys+'?offset=' + next + '&limit=' + limit : null,
               items: collection
             };
 
@@ -400,19 +402,20 @@ Creator.prototype = {
 
   postInstance: function(key, model){
     var that = this,
-        keys = pluralize(key);
+        keys = pluralize(key),
+        prefix = this.prefix;
     /**
      * Create new instance data and return instance URI with 201 status code
      */
 
     this.doc({
       method: 'post',
-      url : '/'+keys,
+      url : prefix + '/'+keys,
       group: key,
       name: 'Create instance',
       create: true
     });
-    this.router.post('/'+keys, function(req, res){
+    this.router.post(prefix + '/'+keys, function(req, res){
       var id,
           text = '',
           uniqKeys = _.chain(model)
@@ -494,7 +497,7 @@ Creator.prototype = {
           resutils.error(res, err);
           return;
         }
-        res.location('/'+keys+'/' + id );
+        res.location(prefix + '/'+keys+'/' + id );
         res.status(201).send(null);
       });
     });
@@ -503,7 +506,8 @@ Creator.prototype = {
   getInstance: function(key, model){
     var that = this,
         keys = pluralize(key),
-        fields = this.fields(key);
+        fields = this.fields(key),
+        prefix = this.prefix;
 
     /**
      * Get specified instance by ID
@@ -511,12 +515,12 @@ Creator.prototype = {
 
     this.doc({
       method: 'get',
-      url : '/'+keys+'/:id',
+      url : prefix + '/'+keys+'/:id',
       group: key,
       name: 'Get instance',
       model: model
     });
-    this.router.get('/'+keys + '/:id', function(req, res){
+    this.router.get(prefix + '/'+keys + '/:id', function(req, res){
       var id = req.params.id;
 
       async.waterfall([
@@ -552,7 +556,8 @@ Creator.prototype = {
     var that = this,
         parentKeys = pluralize(parentKey),
         keys = pluralize(attr.children),
-        fields = this.fields(key);
+        fields = this.fields(key),
+        prefix = this.prefix;
 
     /**
      * /groups/uxd/members
@@ -567,12 +572,12 @@ Creator.prototype = {
      */
     this.doc({
       method: 'get',
-      url : '/'+parentKeys+'/:id/'+key,
+      url : prefix + '/'+parentKeys+'/:id/'+key,
       group: parentKey,
       name: 'Get '+key+' collection',
       collection: true
     });
-    this.router.get('/'+parentKeys+'/:id/'+key, function(req, res){
+    this.router.get(prefix + '/'+parentKeys+'/:id/'+key, function(req, res){
       var id = req.params.id,
           offset = Number(req.query.offset || 0),
           limit = Number(req.query.limit || 25),
@@ -614,10 +619,10 @@ Creator.prototype = {
               offset: offset,
               limit: limit,
               size: size,
-              first: size                 ? '/'+parentKeys+'/'+id+'/'+key+'?offset=0&limit='+limit : null,
-              last:  size                 ? '/'+parentKeys+'/'+id+'/'+key+'?offset='+ ( ( Math.ceil( size / limit ) - 1 ) * limit ) + '&limit='+limit : null,
-              prev:  size && offset !== 0 ? '/'+parentKeys+'/'+id+'/'+key+'?offset='+ ( prev < 0 ? 0 : prev ) + '&limit='+limit : null,
-              next:  size && next < size  ? '/'+parentKeys+'/'+id+'/'+key+'?offset='+ next + '&limit='+limit : null,
+              first: size                 ? prefix + '/'+parentKeys+'/'+id+'/'+key+'?offset=0&limit='+limit : null,
+              last:  size                 ? prefix + '/'+parentKeys+'/'+id+'/'+key+'?offset='+ ( ( Math.ceil( size / limit ) - 1 ) * limit ) + '&limit='+limit : null,
+              prev:  size && offset !== 0 ? prefix + '/'+parentKeys+'/'+id+'/'+key+'?offset='+ ( prev < 0 ? 0 : prev ) + '&limit='+limit : null,
+              next:  size && next < size  ? prefix + '/'+parentKeys+'/'+id+'/'+key+'?offset='+ next + '&limit='+limit : null,
               items: collection
             };
 
@@ -632,18 +637,19 @@ Creator.prototype = {
 
   putAsUpdate: function(key, model){
     var that = this,
-        keys = pluralize(key);
+        keys = pluralize(key),
+        prefix = this.prefix;
 
     /**
      * Update instance as full replacement with specified ID
      */
     this.doc({
       method: 'put',
-      url : '/'+keys+'/:id',
+      url : prefix + '/'+keys+'/:id',
       group: key,
       name: 'Update instance'
     });
-    this.router.put('/' + keys + '/:id', function(req, res){
+    this.router.put(prefix + '/' + keys + '/:id', function(req, res){
       var params = that.params( model, req );
 
       async.waterfall([
@@ -673,18 +679,19 @@ Creator.prototype = {
 
   postAsUpdate: function(key, model){
     var that = this,
-        keys = pluralize(key);
+        keys = pluralize(key),
+        prefix = this.prefix;
 
     /**
      * Update instance as partial replacement with specified ID
      */
     this.doc({
       method: 'post',
-      url : '/'+keys+'/:id',
+      url : prefix + '/'+keys+'/:id',
       group : key,
       name: 'Update instance'
     });
-    this.router.post('/' + keys + '/:id', function(req, res){
+    this.router.post(prefix + '/' + keys + '/:id', function(req, res){
       var params = that.params( model, req, true ),
           results = validate(model, params, true);
 
@@ -722,7 +729,8 @@ Creator.prototype = {
 
   deleteCollection: function(key, model){
     var that = this,
-        keys = pluralize(key);
+        keys = pluralize(key),
+        prefix = this.prefix;
 
     /**
      * Delete all collection
@@ -730,12 +738,12 @@ Creator.prototype = {
      */
     this.doc({
       method: 'delete',
-      url : '/'+keys,
+      url : prefix + '/'+keys,
       group: key,
       name: 'Delete collection',
       collection: true
     });
-    this.router.delete('/'+keys, function(req, res){
+    this.router.delete(prefix + '/'+keys, function(req, res){
       async.waterfall([
         function(callback){
           var cond = that.cond(model, req);
@@ -765,7 +773,8 @@ Creator.prototype = {
 
   deleteInstance: function(key, model){
     var that = this,
-        keys = pluralize(key);
+        keys = pluralize(key),
+        prefix = this.prefix;
 
     /**
      * Delete specified instance
@@ -773,11 +782,11 @@ Creator.prototype = {
      */
     this.doc({
       method: 'delete',
-      url : '/'+keys+'/:id',
+      url : prefix + '/'+keys+'/:id',
       group: key,
       name: 'Delete instance'
     });
-    this.router.delete('/'+keys+'/:id', function(req, res){
+    this.router.delete(prefix + '/'+keys+'/:id', function(req, res){
       async.waterfall([
         function(callback){
           that.models[key].findOneAndRemove({
@@ -802,19 +811,20 @@ Creator.prototype = {
 
   validate: function(key, model){
     var that = this,
-        keys = pluralize(key);
+        keys = pluralize(key),
+        prefix = this.prefix;
     /**
      * Validate parameters
      */
 
     this.doc({
       method: 'get',
-      url : '/validate/'+keys,
+      url : prefix + '/validate/'+keys,
       group: key,
       name: 'Validate parameters',
       validate: true
     });
-    this.router.get('/validate/'+keys, function(req, res){
+    this.router.get(prefix + '/validate/'+keys, function(req, res){
       var params = that.params(model, req, true),
           results = validate(model, params);
 

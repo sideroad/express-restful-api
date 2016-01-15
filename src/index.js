@@ -12,6 +12,7 @@ module.exports = {
         model,
         scheme = options.scheme,
         cors = options.cors,
+        prefix = options.prefix,
         applyChildren = function(key, scheme, model){
           _.each(model, function(attr, childKey){
             if(attr.children) {
@@ -21,7 +22,7 @@ module.exports = {
         };
 
     mongoose.connect(options.mongo);
-    creator = new Creator(mongoose, router, cors);
+    creator = new Creator(mongoose, router, cors, prefix);
 
     for( key in scheme ){
       model = scheme[key];
