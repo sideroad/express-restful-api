@@ -21,7 +21,11 @@ module.exports = {
           });
         };
 
-    mongoose.connect(options.mongo);
+    if ( typeof options.mongo === 'string' ) {
+      mongoose.connect(options.mongo);
+    } else {
+      mongoose = options.mongo;
+    }
     creator = new Creator(mongoose, router, cors, prefix);
 
     for( key in scheme ){
