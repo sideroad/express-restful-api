@@ -11,7 +11,7 @@ var assert = require('assert'),
     async = require('async'),
     app = express(),
     mongoose = require('mongoose'),
-    scheme = {
+    schema = {
       company: {
         name: {
           uniq: true,
@@ -19,10 +19,12 @@ var assert = require('assert'),
           invalid: "Only alphabets number spaces allowed"
         },
         members: {
-          children: 'person'
+          type: 'children',
+          relation: 'person'
         },
         president: {
-          instance: 'person'
+          type: 'instance',
+          relation: 'person'
         }
       },
       person: {
@@ -31,7 +33,8 @@ var assert = require('assert'),
           text: true
         },
         company: {
-          parent: 'company.members',
+          type: 'parent',
+          relation: 'company.members',
           text: true
         },
         age: {
@@ -51,20 +54,20 @@ describe('Creator', function () {
     app.use(bodyParser.json());
     app.use(router);
 
-    creator.model('company', scheme.company);
-    creator.getInstance('company', scheme.company);
-    creator.getCollection('company', scheme.company);
-    creator.getChildren('company', { children: 'person' }, 'members', scheme.person);
-    creator.postInstance('company', scheme.company);
-    creator.deleteCollection('company', scheme.company);
-    creator.validate('company', scheme.company);
+    creator.model('company', schema.company);
+    creator.getInstance('company', schema.company);
+    creator.getCollection('company', schema.company);
+    creator.getChildren('company', { type: 'children', relation: 'person' }, 'members', schema.person);
+    creator.postInstance('company', schema.company);
+    creator.deleteCollection('company', schema.company);
+    creator.validate('company', schema.company);
 
-    creator.model('person', scheme.person);
-    creator.getInstance('person', scheme.person);
-    creator.getCollection('person', scheme.person);
-    creator.postInstance('person', scheme.person);
-    creator.deleteCollection('person', scheme.person);
-    creator.validate('person', scheme.person);
+    creator.model('person', schema.person);
+    creator.getInstance('person', schema.person);
+    creator.getCollection('person', schema.person);
+    creator.postInstance('person', schema.person);
+    creator.deleteCollection('person', schema.person);
+    creator.validate('person', schema.person);
 
   });
 
@@ -314,7 +317,7 @@ describe('Creator', function () {
   });
 
   it('should create href', function(done){
-    var collection = creator.href(scheme.company, 'companies', [
+    var collection = creator.href(schema.company, 'companies', [
       {
         id: 'side',
         name: 'Side',
@@ -773,7 +776,7 @@ describe('Creator', function () {
 
   it('should create delete instance routing', function(done) {
 
-    creator.deleteInstance('company', scheme.company);
+    creator.deleteInstance('company', schema.company);
 
     async.waterfall([
       function(callback){
@@ -805,7 +808,7 @@ describe('Creator', function () {
 
   it('should create post update instance routing', function(done) {
 
-    creator.postAsUpdate('company', scheme.company);
+    creator.postAsUpdate('company', schema.company);
 
     async.waterfall([
       function(callback){

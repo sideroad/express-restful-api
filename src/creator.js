@@ -75,14 +75,14 @@ Creator.prototype = {
                 doc.validate ){
                 params = params.concat(
                   _.map(requestAttrs[doc.group], function(attr, key){
-                    return attr.children ? '' :
+                    return attr.type === 'children' ? '' :
                            '@apiParam {'+
                               (attr.type === 'number' ? 'Number' : 'String')+
                             '} ' +
                             (doc.create && ( attr.required || attr.uniq ) ? key : '[' + key + ']') +
                             (doc.create && attr.default                   ? '=' + attr.default : '' ) + ' ' +
                             (attr.desc     ? attr.desc :
-                             attr.instance ? attr.instance + ' id' : '');
+                             attr.type === 'instance' ? attr.relation + ' id' : '');
                   })
                 );
             }
@@ -107,11 +107,13 @@ Creator.prototype = {
                      _.map(schemas[doc.group], function(schema, key){
                        var attr = responseAttrs[doc.group][key] || {};
                        return '@apiSuccess {'+
-                                 (attr.type === 'number'         ? 'Number' :
-                                  attr.children || attr.instance ? 'Object' : 'String')+
+                                 (attr.type === 'number'   ? 'Number' :
+                                  attr.type === 'children' ? 'Object' :
+                                  attr.type === 'instance' ? 'Object' : 'String')+
                                '} ' + key + ' ' +
-                                 (attr.desc                      ? attr.desc :
-                                  attr.children || attr.instance ? 'linking of ' + ( attr.children || attr.instance ) : '');
+                                 (attr.desc                ? attr.desc :
+                                  attr.type === 'children' ? 'linking of ' + ( attr.relation ) :
+                                  attr.type === 'instance' ? 'linking of ' + ( attr.relation ) : '');
                      }).join('\n * ');
 
     this.docs.push(
@@ -141,9 +143,9 @@ Creator.prototype = {
         });
 
     _.each(attr, function(attr, name){
-      var type = attr.type === 'number' ? Number :
-                 attr.type === 'date'   ? Date   :
-                 attr.children          ? Array  : String;
+      var type = attr.type === 'number'   ? Number :
+                 attr.type === 'date'     ? Date   :
+                 attr.type === 'children' ? Array  : String;
 
       schemaType[name] = {
         type: type,
@@ -174,7 +176,7 @@ Creator.prototype = {
     _.map(model, function(option, key){
       var value = req.body[key] || req.params[key] || req.query[key] || '';
 
-      if(option.children) {
+      if(option.type === 'children') {
         value = value ? value : [];
       } else {
         value = value ? value : '';
@@ -226,7 +228,7 @@ Creator.prototype = {
           parentCollectionKey,
           instanceKey;
 
-      if( option.children ){
+      if( option.type === 'children' ){
         collection = _.map(collection, function(instance){
           if( instance.hasOwnProperty(key) ) {
             instance[key] = {
@@ -237,8 +239,8 @@ Creator.prototype = {
         });
       }
 
-      if( option.parent ){
-        parentCollectionKey = pluralize(option.parent.split('.')[0]);
+      if( option.type === 'parent' ){
+        parentCollectionKey = pluralize(option.relation.split('.')[0]);
         collection = _.map(collection, function(instance){
           if( instance.hasOwnProperty(key) ) {
             instance[key] = {
@@ -249,9 +251,9 @@ Creator.prototype = {
         });
       }
 
-      if( option.instance ){
+      if( option.type === 'instance' ){
 
-        instanceKey = option.instance;
+        instanceKey = option.relation;
         collection = _.map(collection, function(instance){
           if( instance.hasOwnProperty(key) ) {
             instance[key] = {
@@ -273,11 +275,11 @@ Creator.prototype = {
       var id,
           key;
 
-      if(attr.parent) {
-        key = attr.parent.split('.')[0];
+      if(attr.type === 'parent') {
+        key = attr.relation.split('.')[0];
       }
-      if(attr.instance) {
-        key = attr.instance;
+      if(attr.type === 'instance') {
+        key = attr.relation;
       }
       id = req.body[name];
       if( key && id ) {
@@ -302,9 +304,9 @@ Creator.prototype = {
   getProcessUpdateParent: function(req, schema, model){
     var process = [];
     _.each(schema, function(attr){
-      if(attr.parent) {
-        var key = attr.parent.split('.')[0],
-            child = attr.parent.split('.')[1];
+      if(attr.type === 'parent') {
+        var key = attr.relation.split('.')[0],
+            child = attr.relation.split('.')[1];
 
         process = process.concat([
           function(callback){
@@ -555,7 +557,7 @@ Creator.prototype = {
   getChildren: function(parentKey, attr, key, model){
     var that = this,
         parentKeys = pluralize(parentKey),
-        keys = pluralize(attr.children),
+        keys = pluralize(attr.relation),
         fields = this.fields(key),
         prefix = this.prefix;
 
@@ -592,7 +594,7 @@ Creator.prototype = {
         function(callback){
           var reqFields = req.query.fields;
 
-          that.models[attr.children].find(cond, reqFields ? reqFields.replace(/,/g, ' ') + ' -_id' : fields, {
+          that.models[attr.relation].find(cond, reqFields ? reqFields.replace(/,/g, ' ') + ' -_id' : fields, {
             skip: offset,
             limit: limit
           }, function(err, collection){
@@ -601,7 +603,7 @@ Creator.prototype = {
         },
         function(collection, callback){
 
-          that.models[attr.children].count(cond, function(err, size){
+          that.models[attr.relation].count(cond, function(err, size){
             callback(err, collection, size);
           });
         }

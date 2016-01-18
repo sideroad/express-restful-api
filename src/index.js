@@ -10,13 +10,13 @@ module.exports = {
   router: function(options){
     var key,
         model,
-        scheme = options.scheme,
+        schema = options.schema,
         cors = options.cors,
         prefix = options.prefix,
-        applyChildren = function(key, scheme, model){
+        applyChildren = function(key, schema, model){
           _.each(model, function(attr, childKey){
-            if(attr.children) {
-              creator.getChildren( key, attr, childKey, scheme[attr.children] );
+            if(attr.type === 'children') {
+              creator.getChildren( key, attr, childKey, schema[attr.relation] );
             }
           });
         };
@@ -28,12 +28,12 @@ module.exports = {
     }
     creator = new Creator(mongoose, router, cors, prefix);
 
-    for( key in scheme ){
-      model = scheme[key];
+    for( key in schema ){
+      model = schema[key];
       creator.model(key, model);
       creator.getInstance( key, model );
       creator.getCollection( key, model );
-      applyChildren(key, scheme, model);
+      applyChildren(key, schema, model);
 
       creator.postInstance( key, model );
       creator.postAsUpdate(key, model);
