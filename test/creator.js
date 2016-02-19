@@ -40,6 +40,18 @@ var assert = require('assert'),
         age: {
           type: 'number'
         }
+      },
+      holiday: {
+        name: {
+          uniq: true,
+          text: true
+        },
+        start: {
+          type: 'date'
+        },
+        end: {
+          type: 'date'
+        }
       }
     },
     req,
@@ -69,12 +81,20 @@ describe('Creator', function () {
     creator.deleteCollection('person', schema.person);
     creator.validate('person', schema.person);
 
+    creator.model('holiday', schema.holiday);
+    creator.getInstance('holiday', schema.holiday);
+    creator.getCollection('holiday', schema.holiday);
+    creator.postInstance('holiday', schema.holiday);
+    creator.deleteCollection('holiday', schema.holiday);
+    creator.validate('holiday', schema.holiday);
+
   });
 
   var cleanup = function(callback){
     async.mapSeries([
       '/api/companies',
-      '/api/people'
+      '/api/people',
+      '/api/holidays'
     ], function(uri, callback){
       request(app)
         .delete(uri)
@@ -304,6 +324,37 @@ describe('Creator', function () {
           res.body.items[0].company.should.have.property('id', 'side');
           callback();
         });
+    });
+  };
+
+  var createPeriod = function(callback){
+    async.mapSeries([
+      {
+        name: 'New Year',
+        start: '2016-01-01',
+        end: '2016-01-03'
+      },{
+        name: 'Coming of Age Day',
+        start: '2016-01-11',
+        end: '2016-01-11'
+      },{
+        name: 'Golden Week',
+        start: '2016-04-29',
+        end: '2016-05-05'
+      }
+    ], function(data, callback){
+      request(app)
+        .post('/api/holidays')
+        .type('json')
+        .send(data)
+        .expect(201)
+        .end(function(err, res){
+          should.not.exist(err);
+          callback(err);
+        });
+    }, function(err){
+      should.not.exist(err);
+      callback();
     });
   };
 
@@ -648,6 +699,57 @@ describe('Creator', function () {
             res.body.items[2].should.have.property('updatedAt');
             res.body.items[2].company.should.have.property('href', '/api/companies/road');
             res.body.items[2].company.should.have.property('id', 'road');
+            callback();
+          });
+      },
+      function(callback){
+        createPeriod(callback);
+      },
+      function(callback){
+        request(app)
+          .get('/api/holidays')
+          .expect(200)
+          .end(function(err, res){
+            should.not.exist(err);
+            res.body.should.have.property('offset', 0);
+            res.body.should.have.property('limit', 25);
+            res.body.should.have.property('first', '/api/holidays?offset=0&limit=25');
+            res.body.should.have.property('last',  '/api/holidays?offset=0&limit=25');
+            res.body.should.have.property('next', null);
+            res.body.should.have.property('prev', null);
+            res.body.items.length.should.equal(3);
+            callback();
+          });
+      },
+      function(callback){
+        request(app)
+          .get('/api/holidays?start=[2016-01-01,2016-02-01]')
+          .expect(200)
+          .end(function(err, res){
+            should.not.exist(err);
+            res.body.should.have.property('offset', 0);
+            res.body.should.have.property('limit', 25);
+            res.body.should.have.property('first', '/api/holidays?offset=0&limit=25');
+            res.body.should.have.property('last',  '/api/holidays?offset=0&limit=25');
+            res.body.should.have.property('next', null);
+            res.body.should.have.property('prev', null);
+            res.body.items.length.should.equal(2);
+            callback();
+          });
+      },
+      function(callback){
+        request(app)
+          .get('/api/holidays?start=[2016-01-01,2016-01-01]')
+          .expect(200)
+          .end(function(err, res){
+            should.not.exist(err);
+            res.body.should.have.property('offset', 0);
+            res.body.should.have.property('limit', 25);
+            res.body.should.have.property('first', '/api/holidays?offset=0&limit=25');
+            res.body.should.have.property('last',  '/api/holidays?offset=0&limit=25');
+            res.body.should.have.property('next', null);
+            res.body.should.have.property('prev', null);
+            res.body.items.length.should.equal(1);
             callback();
           });
       },
