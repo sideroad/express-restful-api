@@ -244,7 +244,8 @@ Creator.prototype = {
         collection = _.map(collection, function(instance){
           if( instance.hasOwnProperty(key) ) {
             instance[key] = {
-              href: prefix + '/'+parentCollectionKey+'/'+instance[key]
+              href: prefix + '/'+parentCollectionKey+'/'+instance[key],
+              id: instance[key]
             };
           }
           return instance;
@@ -257,7 +258,8 @@ Creator.prototype = {
         collection = _.map(collection, function(instance){
           if( instance.hasOwnProperty(key) ) {
             instance[key] = {
-              href: instance[key] ? prefix + '/'+pluralize(instanceKey)+'/'+instance[key] : null
+              href: instance[key] ? prefix + '/'+pluralize(instanceKey)+'/'+instance[key] : null,
+              id: instance[key]
             };
           }
           return instance;

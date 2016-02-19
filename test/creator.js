@@ -301,6 +301,7 @@ describe('Creator', function () {
           res.body.items.should.have.property('length', 1);
           res.body.items[0].should.have.property('name', 'duplicator');
           res.body.items[0].company.should.have.property('href', '/api/companies/side');
+          res.body.items[0].company.should.have.property('id', 'side');
           callback();
         });
     });
@@ -326,6 +327,7 @@ describe('Creator', function () {
     ]);
 
     collection[0].president.should.have.property('href', '/api/people/sideroad');
+    collection[0].president.should.have.property('id', 'sideroad');
     done();
   });
 
@@ -365,6 +367,7 @@ describe('Creator', function () {
                     res.body.items.should.have.property('length', 1);
                     res.body.items[0].should.have.property('name', 'foobar');
                     res.body.items[0].company.should.have.property('href', '/api/companies/road');
+                    res.body.items[0].company.should.have.property('id', 'road');
                     done();
                   });
               });
@@ -506,18 +509,21 @@ describe('Creator', function () {
             res.body.items[0].should.have.property('createdAt');
             res.body.items[0].should.have.property('updatedAt');
             res.body.items[0].company.should.have.property('href', '/api/companies/side');
+            res.body.items[0].company.should.have.property('id', 'side');
             res.body.items[1].should.have.property('id', 'roadside');
             res.body.items[1].should.have.property('name', 'roadside');
             res.body.items[1].should.have.property('age', null);
             res.body.items[1].should.have.property('createdAt');
             res.body.items[1].should.have.property('updatedAt');
             res.body.items[1].company.should.have.property('href', '/api/companies/road');
+            res.body.items[1].company.should.have.property('id', 'road');
             res.body.items[2].should.have.property('id', 'foobar');
             res.body.items[2].should.have.property('name', 'foobar');
             res.body.items[2].should.have.property('age', null);
             res.body.items[2].should.have.property('createdAt');
             res.body.items[2].should.have.property('updatedAt');
             res.body.items[2].company.should.have.property('href', '/api/companies/road');
+            res.body.items[2].company.should.have.property('id', 'road');
             callback();
           });
       },
@@ -556,6 +562,7 @@ describe('Creator', function () {
             res.body.items[0].should.have.property('createdAt');
             res.body.items[0].should.have.property('updatedAt');
             res.body.items[0].company.should.have.property('href', '/api/companies/side');
+            res.body.items[0].company.should.have.property('id', 'side');
             callback();
           });
       },
@@ -600,6 +607,7 @@ describe('Creator', function () {
             res.body.items[0].should.have.property('createdAt');
             res.body.items[0].should.have.property('updatedAt');
             res.body.items[0].company.should.have.property('href', '/api/companies/road');
+            res.body.items[0].company.should.have.property('id', 'road');
             callback();
           });
       },
@@ -623,6 +631,7 @@ describe('Creator', function () {
             res.body.items[0].should.have.property('createdAt');
             res.body.items[0].should.have.property('updatedAt');
             res.body.items[0].company.should.have.property('href', '/api/companies/side');
+            res.body.items[0].company.should.have.property('id', 'side');
 
             res.body.items[1].should.have.property('id', 'roadside');
             res.body.items[1].should.have.property('name', 'roadside');
@@ -630,6 +639,7 @@ describe('Creator', function () {
             res.body.items[1].should.have.property('createdAt');
             res.body.items[1].should.have.property('updatedAt');
             res.body.items[1].company.should.have.property('href', '/api/companies/road');
+            res.body.items[1].company.should.have.property('id', 'road');
 
             res.body.items[2].should.have.property('id', 'foobar');
             res.body.items[2].should.have.property('name', 'foobar');
@@ -637,6 +647,7 @@ describe('Creator', function () {
             res.body.items[2].should.have.property('createdAt');
             res.body.items[2].should.have.property('updatedAt');
             res.body.items[2].company.should.have.property('href', '/api/companies/road');
+            res.body.items[2].company.should.have.property('id', 'road');
             callback();
           });
       },
@@ -741,6 +752,7 @@ describe('Creator', function () {
             res.body.items[0].should.have.property('id', 'sideroad');
             res.body.items[0].should.have.property('name', 'sideroad');
             res.body.items[0].company.should.have.property('href', '/api/companies/side');
+            res.body.items[0].company.should.have.property('id', 'side');
             res.body.items[0].should.have.property('createdAt');
             res.body.items[0].should.have.property('updatedAt');
             callback();
@@ -855,6 +867,7 @@ describe('Creator', function () {
             res.body.should.have.property('createdAt');
             res.body.should.have.property('updatedAt');
             res.body.president.should.have.property('href', '/api/people/sideroad');
+            res.body.president.should.have.property('id', 'sideroad');
             res.body.members.should.have.property('href', '/api/companies/side/members');
             done();
           });
@@ -882,6 +895,7 @@ describe('Creator', function () {
             res.body.should.have.property('createdAt');
             res.body.should.have.property('updatedAt');
             res.body.president.should.have.property('href', '/api/people/sideroad');
+            res.body.president.should.have.property('id', 'sideroad');
             res.body.members.should.have.property('href', '/api/companies/side/members');
             done();
           });
@@ -909,6 +923,7 @@ describe('Creator', function () {
             res.body.should.have.property('createdAt');
             res.body.should.have.property('updatedAt');
             res.body.president.should.have.property('href', '/api/people/sideroad');
+            res.body.president.should.have.property('id', 'sideroad');
             res.body.members.should.have.property('href', '/api/companies/side/members');
             done();
           });
