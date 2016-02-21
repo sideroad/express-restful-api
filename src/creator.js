@@ -291,7 +291,10 @@ Creator.prototype = {
               id: id
             }, function(err, instance){
               if( !instance ) {
-                err = new Error('Specified ID ( ' + id + ' ) does not exists in ' + key);
+                err = {
+                  err: {}
+                };
+                err.err[key] = 'Specified ID ( ' + id + ' ) does not exists in ' + key;
                 err.code = 400;
               }
               callback(err);

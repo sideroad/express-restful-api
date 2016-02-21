@@ -2,7 +2,8 @@ module.exports = {
   error: function(res, err){
     res
       .status(err.code || 500)
-      .json({
+      .json(
+        err.err ? err.err : {
         msg: err.message
       })
       .end();

@@ -191,7 +191,7 @@ describe('Creator', function () {
         .expect(400)
         .end(function(err, res){
           should.not.exist(err);
-          res.body.should.have.property('msg', 'Specified ID ( notexist ) does not exists in person');
+          res.body.should.have.property('person', 'Specified ID ( notexist ) does not exists in person');
           callback(err);
         });
     }, function(err){
@@ -273,7 +273,7 @@ describe('Creator', function () {
         .expect(400)
         .end(function(err, res){
           should.not.exist(err);
-          res.body.should.have.property('msg', 'Specified ID ( notexist ) does not exists in company');
+          res.body.should.have.property('company', 'Specified ID ( notexist ) does not exists in company');
           callback(err);
         });
     }, function(err){
