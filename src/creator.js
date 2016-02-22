@@ -294,7 +294,7 @@ Creator.prototype = {
                 err = {
                   err: {}
                 };
-                err.err[key] = 'Specified ID ( ' + id + ' ) does not exists in ' + key;
+                err.err[name] = 'Specified ID ( ' + id + ' ) does not exists in ' + key;
                 err.code = 400;
               }
               callback(err);

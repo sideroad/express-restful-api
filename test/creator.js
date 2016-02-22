@@ -191,7 +191,7 @@ describe('Creator', function () {
         .expect(400)
         .end(function(err, res){
           should.not.exist(err);
-          res.body.should.have.property('person', 'Specified ID ( notexist ) does not exists in person');
+          res.body.should.have.property('president', 'Specified ID ( notexist ) does not exists in person');
           callback(err);
         });
     }, function(err){
