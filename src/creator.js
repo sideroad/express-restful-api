@@ -174,15 +174,16 @@ Creator.prototype = {
   params: function(model, req, isRaw){
     var params = {};
     _.map(model, function(option, key){
-      var value = req.body[key] || req.params[key] || req.query[key] || '';
+      var value = req.body[key]   !== undefined ? req.body[key]   :
+                  req.params[key] !== undefined ? req.params[key] :
+                  req.query[key]  !== undefined ? req.query[key]  : undefined;
 
       if(option.type === 'children') {
-        value = value ? value : [];
-      } else {
-        value = value ? value : '';
+        value = value !== undefined ? value : [];
       }
 
-      if(_.isArray(value) ? value.length : value) {
+      if(_.isArray(value) ? value.length :
+         value !== undefined ) {
         params[key] = value;
       }
 

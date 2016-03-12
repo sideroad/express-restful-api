@@ -25,6 +25,11 @@ var assert = require('assert'),
         president: {
           type: 'instance',
           relation: 'person'
+        },
+        location: {
+          type: 'string',
+          regexp: /^[a-zA-Z]+$/,
+          invalid: "Only alphabets allowed"
         }
       },
       person: {
@@ -363,7 +368,7 @@ describe('Creator', function () {
   });
 
   it('should return each fields', function(done){
-    creator.fields('company').should.equal('id name members president createdAt updatedAt -_id');
+    creator.fields('company').should.equal('id name members president location createdAt updatedAt -_id');
     creator.fields('person').should.equal('id name company age createdAt updatedAt -_id');
     done();
   });
@@ -787,7 +792,7 @@ describe('Creator', function () {
             res.body.president.should.have.property('href', null);
             res.body.members.should.have.property('href', '/api/companies/side/members');
 
-            done();
+            callback();
           });
       },
       function(callback){
@@ -803,7 +808,7 @@ describe('Creator', function () {
             res.body.should.not.have.property('president');
             res.body.should.not.have.property('members');
 
-            done();
+            callback();
           });
       }
     ], function(err){
@@ -971,7 +976,7 @@ describe('Creator', function () {
             res.body.president.should.have.property('href', '/api/people/sideroad');
             res.body.president.should.have.property('id', 'sideroad');
             res.body.members.should.have.property('href', '/api/companies/side/members');
-            done();
+            callback();
           });
       },
       function(callback){
@@ -982,7 +987,7 @@ describe('Creator', function () {
           .expect(400)
           .end(function(err, res){
             should.not.exist(err);
-            res.body.should.have.property('msg');
+            res.body.should.have.property('name', 'Only alphabets number spaces allowed');
             callback();
           });
       },
@@ -999,7 +1004,7 @@ describe('Creator', function () {
             res.body.president.should.have.property('href', '/api/people/sideroad');
             res.body.president.should.have.property('id', 'sideroad');
             res.body.members.should.have.property('href', '/api/companies/side/members');
-            done();
+            callback();
           });
       },
       function(callback){
@@ -1010,7 +1015,7 @@ describe('Creator', function () {
           .expect(400)
           .end(function(err, res){
             should.not.exist(err);
-            res.body.should.have.property('msg');
+            res.body.should.have.property('president', 'Specified ID ( notexist ) does not exists in person');
             callback();
           });
       },
@@ -1027,7 +1032,35 @@ describe('Creator', function () {
             res.body.president.should.have.property('href', '/api/people/sideroad');
             res.body.president.should.have.property('id', 'sideroad');
             res.body.members.should.have.property('href', '/api/companies/side/members');
-            done();
+            callback();
+          });
+      },
+      function(callback){
+        request(app)
+          .post('/api/companies/side')
+          .type('json')
+          .send({location: '12345'})
+          .expect(400)
+          .end(function(err, res){
+            should.not.exist(err);
+            res.body.should.have.property('location', 'Only alphabets allowed');
+            callback();
+          });
+      },
+      function(callback){
+        request(app)
+          .get('/api/companies/side')
+          .expect(200)
+          .end(function(err, res){
+            should.not.exist(err);
+            res.body.should.have.property('id', 'side');
+            res.body.should.have.property('name', 'Side');
+            res.body.should.have.property('createdAt');
+            res.body.should.have.property('updatedAt');
+            res.body.president.should.have.property('href', '/api/people/sideroad');
+            res.body.president.should.have.property('id', 'sideroad');
+            res.body.members.should.have.property('href', '/api/companies/side/members');
+            callback();
           });
       }
     ], function(err){
