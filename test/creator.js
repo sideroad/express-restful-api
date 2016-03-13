@@ -772,7 +772,7 @@ describe('Creator', function () {
           .expect(404)
           .end(function(err, res){
             should.not.exist(err);
-            res.body.should.have.property('msg', 'company does not exists');
+            res.body.should.have.property('id', 'Specified ID (side) does not exists in company');
             callback();
           });
       },
@@ -916,7 +916,7 @@ describe('Creator', function () {
           .expect(404)
           .end(function(err, res){
             should.not.exist(err);
-            res.body.should.have.property('msg', 'company does not exists');
+            res.body.should.have.property('id', 'Specified ID (side) does not exists in company');
             callback();
           });
       }
@@ -983,11 +983,11 @@ describe('Creator', function () {
         request(app)
           .post('/api/companies/side')
           .type('json')
-          .send({name: ''})
+          .send({name: 'aaa'})
           .expect(400)
           .end(function(err, res){
             should.not.exist(err);
-            res.body.should.have.property('name', 'Only alphabets number spaces allowed');
+            res.body.should.have.property('name', 'uniq key could not be changed');
             callback();
           });
       },

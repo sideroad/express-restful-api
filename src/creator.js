@@ -171,7 +171,7 @@ Creator.prototype = {
     }).join(' ') + ' -_id';
   },
 
-  params: function(model, req, isRaw){
+  params: function(model, req){
     var params = {};
     _.map(model, function(option, key){
       var value = req.body[key]   !== undefined ? req.body[key]   :
@@ -192,7 +192,7 @@ Creator.prototype = {
   },
 
   cond: function(model, req ){
-    var params = this.params( model, req, true ),
+    var params = this.params( model, req ),
         cond = {};
 
     _.each(params, function(val, key){
@@ -408,6 +408,15 @@ Creator.prototype = {
     });
   },
 
+  getUniqKeys: function(model){
+    return _.chain(model)
+            .map(function(value, key){
+              return value.uniq ? key : undefined;
+            })
+            .compact()
+            .value();
+  },
+
   postInstance: function(key, model){
     var that = this,
         keys = pluralize(key),
@@ -426,12 +435,7 @@ Creator.prototype = {
     this.router.post(prefix + '/'+keys, function(req, res){
       var id,
           text = '',
-          uniqKeys = _.chain(model)
-                      .map(function(value, key){
-                        return value.uniq ? key : undefined;
-                      })
-                      .compact()
-                      .value(),
+          uniqKeys = that.getUniqKeys(model),
           texts = _.chain(model)
                    .map(function(value, key){
                      return value.text ? key : undefined;
@@ -439,7 +443,7 @@ Creator.prototype = {
                    .compact()
                    .value(),
           md5 = crypto.createHash('md5'),
-          params = that.params(model, req, true),
+          params = that.params( model, req ),
           process = [],
           results = validate(model, params);
 
@@ -539,8 +543,12 @@ Creator.prototype = {
             id: id
           }, reqFields ? reqFields.replace(/,/g, ' ') + ' -_id' : fields, function( err, instance ){
             if( !instance ) {
-              err = new Error(key+' does not exists');
-              err.code = 404;
+              err = {
+                err: {
+                  id: 'Specified ID (' + id + ') does not exists in ' + key
+                },
+                code: 404
+              };
             }
 
             callback(err, instance ? instance : {});
@@ -685,6 +693,22 @@ Creator.prototype = {
     });
   },
 
+  validatePermission: function(model, params){
+    var uniqKeys = this.getUniqKeys(model),
+        result = {
+          ok: true
+        };
+
+    uniqKeys.map(function(key){
+      if( params[key] !== undefined ) {
+        result.ok = false;
+        result[key] = 'uniq key could not be changed';
+      }
+    });
+
+    return result;
+  },
+
   postAsUpdate: function(key, model){
     var that = this,
         keys = pluralize(key),
@@ -700,11 +724,21 @@ Creator.prototype = {
       name: 'Update instance'
     });
     this.router.post(prefix + '/' + keys + '/:id', function(req, res){
-      var params = that.params( model, req, true ),
-          results = validate(model, params, true);
+      var params = that.params( model, req ),
+          results = [
+            that.validatePermission( model, params ),
+            validate(model, params, true)
+          ],
+          isValid = true;
 
-      if( !results.ok ) {
-        res.status(400).json( results );
+      results.map(function(result){
+        if( isValid && !result.ok ) {
+          res.status(400).json( result );
+          isValid = false;
+        }
+      });
+
+      if (! isValid ){
         return;
       }
 
@@ -833,8 +867,8 @@ Creator.prototype = {
       validate: true
     });
     this.router.get(prefix + '/validate/'+keys, function(req, res){
-      var params = that.params(model, req, true),
-          results = validate(model, params);
+      var params = that.params( model, req ),
+          results = validate( model, params );
 
       res.status( results.ok ? 200 : 400).json( results );
     });
