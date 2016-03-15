@@ -16,7 +16,7 @@ describe('validate', function () {
     });
 
     results.should.not.have.property('ok');
-    results.should.have.property('number', 'Invalid value: key[number] value[a]');
+    results.should.have.property('number', 'Invalid value[a]');
 
     results = validate({
       number: {
@@ -27,7 +27,7 @@ describe('validate', function () {
     });
 
     results.should.not.have.property('ok');
-    results.should.have.property('number', 'Invalid value: key[number] value[a]');
+    results.should.have.property('number', 'Invalid value[a]');
 
     results = validate({
       number: {
@@ -38,7 +38,7 @@ describe('validate', function () {
     });
 
     results.should.not.have.property('ok');
-    results.should.have.property('number', 'Invalid value: key[number] value[null]');
+    results.should.have.property('number', 'Invalid value[null]');
     done();
   });
 

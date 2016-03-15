@@ -701,7 +701,7 @@ Creator.prototype = {
 
     uniqKeys.map(function(key){
       if( params[key] !== undefined ) {
-        result.ok = false;
+        delete result.ok;
         result[key] = 'uniq key could not be changed';
       }
     });

@@ -16,7 +16,7 @@ module.exports = function(config, params, isPartialMatch){
         (config[key].uniq     && value === null) ||
         (regexp && regexp instanceof RegExp   && !regexp.test(value))   ||
         (regexp && typeof regexp === 'string' && !new RegExp(regexp).test(value)) ) {
-      errors[key] = invalid || 'Invalid value: key[' + key + '] value['+value+']';
+      errors[key] = invalid || 'Invalid value['+value+']';
     }
   });
 
