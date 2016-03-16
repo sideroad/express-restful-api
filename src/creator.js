@@ -176,7 +176,9 @@ Creator.prototype = {
     _.map(model, function(option, key){
       var value = req.body[key]   !== undefined ? req.body[key]   :
                   req.params[key] !== undefined ? req.params[key] :
-                  req.query[key]  !== undefined ? req.query[key]  : undefined;
+                  req.query[key]  !== undefined &&
+                  req.query[key]  !== null &&
+                  req.query[key]  !== ''        ? req.query[key]  : undefined;
 
       if(option.type === 'children') {
         value = value !== undefined ? value : [];

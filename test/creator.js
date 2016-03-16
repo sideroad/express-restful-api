@@ -522,6 +522,34 @@ describe('Creator', function () {
       },
       function(callback){
         request(app)
+          .get('/api/companies?name=')
+          .expect(200)
+          .end(function(err, res){
+            should.not.exist(err);
+            res.body.should.have.property('offset', 0);
+            res.body.should.have.property('limit', 25);
+            res.body.should.have.property('first', '/api/companies?offset=0&limit=25');
+            res.body.should.have.property('last',  '/api/companies?offset=0&limit=25');
+            res.body.should.have.property('next', null);
+            res.body.should.have.property('prev', null);
+            res.body.items.length.should.equal(2);
+            res.body.items[0].should.have.property('id', 'side');
+            res.body.items[0].should.have.property('name', 'Side');
+            res.body.items[0].should.have.property('createdAt');
+            res.body.items[0].should.have.property('updatedAt');
+            res.body.items[0].president.should.have.property('href', null);
+            res.body.items[0].members.should.have.property('href', '/api/companies/side/members');
+            res.body.items[1].should.have.property('id', 'road');
+            res.body.items[1].should.have.property('name', 'Road');
+            res.body.items[1].should.have.property('createdAt');
+            res.body.items[1].should.have.property('updatedAt');
+            res.body.items[1].president.should.have.property('href', null);
+            res.body.items[1].members.should.have.property('href', '/api/companies/road/members');
+            callback();
+          });
+      },
+      function(callback){
+        request(app)
           .get('/api/companies')
           .send({name:'Side'})
           .expect(200)
