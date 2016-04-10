@@ -1,6 +1,6 @@
 {
   "name": "express-restful-api",
-  "version": "8.0.2",
+  "version": "8.1.0",
   "main": "src/index.js",
   "scripts": {
     "test": "mocha test --timeout=20000"
@@ -16,7 +16,8 @@
     "moment": "^2.10.6",
     "mongoose": "^4.3.0",
     "pluralize": "^1.2.1",
-    "redis": "^0.12.1"
+    "redis": "^0.12.1",
+    "unroute": "0.0.2"
   },
   "author": "sideroad",
   "license": "MIT",

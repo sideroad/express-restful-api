@@ -10,7 +10,8 @@ var _ = require('lodash'),
     apidoc = require('apidoc'),
     pluralize = require('pluralize'),
     camelize = require('camelize'),
-    cors = require('cors');
+    cors = require('cors'),
+    unroute = require('unroute');
 
 var Creator = function(mongoose, router, cors, prefix){
   this.mongoose = mongoose;
@@ -873,6 +874,17 @@ Creator.prototype = {
           results = validate( model, params );
 
       res.status( results.ok ? 200 : 400).json( results );
+    });
+  },
+
+  unroute: function(){
+    var router = this.router;
+    var paths = router.stack.map(function(layer){
+      return layer.route.path;
+    });
+
+    _.uniq(paths).map(function(path){
+      unroute.remove(router, path);
     });
   }
 

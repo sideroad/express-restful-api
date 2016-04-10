@@ -1,15 +1,16 @@
 var express = require('express'),
-    router = express.Router(),
     redis = require('redis'),
     _ = require('lodash'),
     Creator = require('./creator'),
     mongoose = require('mongoose'),
+    creator,
     client;
 
 module.exports = {
   router: function(options){
     var key,
         model,
+        router = express.Router(),
         schema = options.schema,
         cors = options.cors,
         prefix = options.prefix,
@@ -47,5 +48,8 @@ module.exports = {
   },
   doc: function(doc){
     creator.createDoc(doc);
+  },
+  destroy: function(){
+    creator.unroute();
   }
 };

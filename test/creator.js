@@ -67,6 +67,9 @@ describe('Creator', function () {
 
   before(function(){
     mongoose.connect(process.env.MONGO_URL);
+    mongoose.models = {};
+    mongoose.modelSchemas = {};
+    
     creator = new Creator(mongoose, router, cors, '/api');
     app.use(bodyParser.json());
     app.use(router);
@@ -93,6 +96,10 @@ describe('Creator', function () {
     creator.deleteCollection('holiday', schema.holiday);
     creator.validate('holiday', schema.holiday);
 
+  });
+
+  after(function(){
+    mongoose.disconnect();
   });
 
   var cleanup = function(callback){
