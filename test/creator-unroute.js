@@ -63,7 +63,7 @@ var assert = require('assert'),
     client,
     cors = true;
 
-describe('Creator', function () {
+describe('Creator Unroute', function () {
 
   before(function(){
     mongoose.connect(process.env.MONGO_URL);
@@ -109,7 +109,6 @@ describe('Creator', function () {
           .get('/api/companies')
           .expect(404)
           .end(function(err, res){
-            console.log(err);
             should.not.exist(err);
             callback();
           });

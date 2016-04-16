@@ -10,6 +10,7 @@ var assert = require('assert'),
     bodyParser = require('body-parser'),
     async = require('async'),
     app = express(),
+    prefix = '/api',
     mongoose = require('mongoose'),
     schema = {
       company: {
@@ -69,8 +70,8 @@ describe('Creator', function () {
     mongoose.connect(process.env.MONGO_URL);
     mongoose.models = {};
     mongoose.modelSchemas = {};
-    
-    creator = new Creator(mongoose, router, cors, '/api');
+
+    creator = new Creator(mongoose, router, cors, prefix);
     app.use(bodyParser.json());
     app.use(router);
 
@@ -78,6 +79,8 @@ describe('Creator', function () {
     creator.getInstance('company', schema.company);
     creator.getCollection('company', schema.company);
     creator.getChildren('company', { type: 'children', relation: 'person' }, 'members', schema.person);
+    creator.deleteInstance('company', schema.company);
+    creator.postAsUpdate('company', schema.company);
     creator.postInstance('company', schema.company);
     creator.deleteCollection('company', schema.company);
     creator.validate('company', schema.company);
@@ -929,9 +932,6 @@ describe('Creator', function () {
 
 
   it('should create delete instance routing', function(done) {
-
-    creator.deleteInstance('company', schema.company);
-
     async.waterfall([
       function(callback){
         createCompany(callback);
@@ -961,8 +961,6 @@ describe('Creator', function () {
   });
 
   it('should create post update instance routing', function(done) {
-
-    creator.postAsUpdate('company', schema.company);
 
     async.waterfall([
       function(callback){
