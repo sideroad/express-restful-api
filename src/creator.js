@@ -106,7 +106,7 @@ Creator.prototype = {
                        '@apiSuccess {String} next',
                        '@apiSuccess {Object[]} items Array of '+group+' instance',
                      ].join('\n * ') :
-                     _.map(schemas[prefix + doc.group], function(schema, key){
+                     _.map(schemas[doc.group], function(schema, key){
                        var attr = responseAttrs[doc.group][key] || {};
                        return '@apiSuccess {'+
                                  (attr.type === 'number'   ? 'Number' :
@@ -160,15 +160,15 @@ Creator.prototype = {
     }, schemaType), { minimize: false });
     schema.index({ id: 1 });
 
-    model = this.mongoose.model(key, schema);
+    model = this.mongoose.model(this.prefix + key, schema);
     this.models[key]  = model;
-    this.schemas[this.prefix + key] = schemaType;
+    this.schemas[key] = schemaType;
     this.responseAttrs[key]   = attr;
     this.requestAttrs[key] = _attr;
   },
 
   fields: function(key, params) {
-    return _.map( params || this.schemas[this.prefix + key], function(attr, name) {
+    return _.map( params || this.schemas[key], function(attr, name) {
       return name;
     }).join(' ') + ' -_id';
   },
