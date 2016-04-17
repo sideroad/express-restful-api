@@ -31,6 +31,9 @@ var assert = require('assert'),
           type: 'string',
           regexp: /^[a-zA-Z]+$/,
           invalid: "Only alphabets allowed"
+        },
+        isStockListing: {
+          type: 'boolean'
         }
       },
       person: {
@@ -141,10 +144,12 @@ describe('Creator', function () {
 
   var validCompanies = [
     {
-      name: 'Side'
+      name: 'Side',
+      isStockListing: true
     },
     {
-      name: 'Road'
+      name: 'Road',
+      isStockListing: false
     }
   ];
 
@@ -378,7 +383,7 @@ describe('Creator', function () {
   });
 
   it('should return each fields', function(done){
-    creator.fields('company').should.equal('id name members president location createdAt updatedAt -_id');
+    creator.fields('company').should.equal('id name members president location isStockListing createdAt updatedAt -_id');
     creator.fields('person').should.equal('id name company age createdAt updatedAt -_id');
     done();
   });
@@ -517,12 +522,14 @@ describe('Creator', function () {
             res.body.items.length.should.equal(2);
             res.body.items[0].should.have.property('id', 'side');
             res.body.items[0].should.have.property('name', 'Side');
+            res.body.items[0].should.have.property('isStockListing', true);
             res.body.items[0].should.have.property('createdAt');
             res.body.items[0].should.have.property('updatedAt');
             res.body.items[0].president.should.have.property('href', null);
             res.body.items[0].members.should.have.property('href', '/api/companies/side/members');
             res.body.items[1].should.have.property('id', 'road');
             res.body.items[1].should.have.property('name', 'Road');
+            res.body.items[1].should.have.property('isStockListing', false);
             res.body.items[1].should.have.property('createdAt');
             res.body.items[1].should.have.property('updatedAt');
             res.body.items[1].president.should.have.property('href', null);
@@ -825,6 +832,7 @@ describe('Creator', function () {
             should.not.exist(err);
             res.body.should.have.property('id', 'side');
             res.body.should.have.property('name', 'Side');
+            res.body.should.have.property('isStockListing', true);
             res.body.should.have.property('createdAt');
             res.body.should.have.property('updatedAt');
             res.body.president.should.have.property('href', null);
@@ -841,6 +849,7 @@ describe('Creator', function () {
             should.not.exist(err);
             res.body.should.have.property('id', 'side');
             res.body.should.have.property('name', 'Side');
+            res.body.should.not.have.property('isStockListing');
             res.body.should.not.have.property('createdAt');
             res.body.should.not.have.property('updatedAt');
             res.body.should.not.have.property('president');

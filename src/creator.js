@@ -79,7 +79,8 @@ Creator.prototype = {
                   _.map(requestAttrs[doc.group], function(attr, key){
                     return attr.type === 'children' ? '' :
                            '@apiParam {'+
-                              (attr.type === 'number' ? 'Number' : 'String')+
+                              (attr.type === 'number'  ? 'Number'  :
+                               attr.type === 'boolean' ? 'Boolean' : 'String')+
                             '} ' +
                             (doc.create && ( attr.required || attr.uniq ) ? key : '[' + key + ']') +
                             (doc.create && attr.default                   ? '=' + attr.default : '' ) + ' ' +
@@ -109,9 +110,10 @@ Creator.prototype = {
                      _.map(schemas[doc.group], function(schema, key){
                        var attr = responseAttrs[doc.group][key] || {};
                        return '@apiSuccess {'+
-                                 (attr.type === 'number'   ? 'Number' :
-                                  attr.type === 'children' ? 'Object' :
-                                  attr.type === 'instance' ? 'Object' : 'String')+
+                                 (attr.type === 'number'   ? 'Number'  :
+                                  attr.type === 'boolean'  ? 'Boolean' :
+                                  attr.type === 'children' ? 'Object'  :
+                                  attr.type === 'instance' ? 'Object'  : 'String')+
                                '} ' + key + ' ' +
                                  (attr.desc                ? attr.desc :
                                   attr.type === 'children' ? 'linking of ' + ( attr.relation ) :
@@ -145,9 +147,10 @@ Creator.prototype = {
         });
 
     _.each(attr, function(attr, name){
-      var type = attr.type === 'number'   ? Number :
-                 attr.type === 'date'     ? Date   :
-                 attr.type === 'children' ? Array  : String;
+      var type = attr.type === 'number'   ? Number  :
+                 attr.type === 'boolean'  ? Boolean :
+                 attr.type === 'date'     ? Date    :
+                 attr.type === 'children' ? Array   : String;
 
       schemaType[name] = {
         type: type,
