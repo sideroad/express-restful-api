@@ -27,7 +27,7 @@ app.use('/', creator.router({
       name: {
         uniq: true,
         required: true,
-        regexp: /^[a-zA-Z _]+$/,
+        pattern: /^[a-zA-Z _]+$/,
         desc: "Company name",
         invalid: "Only alphabets number spaces allowed"
       },
@@ -46,7 +46,7 @@ app.use('/', creator.router({
       name: {
         uniq: true,
         required: true,
-        regexp: /^[a-zA-Z _]+$/
+        pattern: /^[a-zA-Z _]+$/
       },
       company: {
         type: 'parent',
@@ -88,7 +88,7 @@ We can specified parameters below
 |uniq     |Boolean       |false    |This data will use to create ID. If multiple keys have `uniq` of true, ID will be `${key1}-${key2}`                  |
 |required |Boolean       |false    |Enable or Disable to validate POST data. If the value is empty, 400 status code will be response                     |
 |type     |String        |'string' |POST data will be store following the type. 'string', 'number', 'date', 'children', 'parent', 'relation' can be used.                                  |
-|regexp   |String, RegExp|undefined|Enable or Disable to validate POST data. If the value does not match with `regexp`, 400 status code will be response |
+|pattern   |String, RegExp|undefined|Enable or Disable to validate POST data. If the value does not match with `pattern`, 400 status code will be response |
 |relation |String        |undefined|instance: The key will be have relationship with specified key. the value could be have only single value. <br><br> children: The key will be have relationship with specified key. the value could be have multiple values. <br><br> parent: If the model have relationship as children, The key should have as `parent` of `${parent model}.${key}`.|
 |desc     |String        |undefined|API document use the value for description                                                                           |
 |invalid  |String        |undefined|When the data is invalid, return message                                                                             |

@@ -15,7 +15,7 @@ var assert = require('assert'),
       company: {
         name: {
           uniq: true,
-          regexp: /^[a-zA-Z 0-9]+$/,
+          pattern: /^[a-zA-Z 0-9]+$/,
           invalid: "Only alphabets number spaces allowed"
         },
         members: {
@@ -28,7 +28,7 @@ var assert = require('assert'),
         },
         location: {
           type: 'string',
-          regexp: /^[a-zA-Z]+$/,
+          pattern: /^[a-zA-Z]+$/,
           invalid: "Only alphabets allowed"
         }
       },

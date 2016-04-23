@@ -9,7 +9,7 @@ describe('validate', function () {
 
     results = validate({
       number: {
-        regexp: '^\\d+$'
+        pattern: '^\\d+$'
       }
     }, {
       number: 'a'
@@ -20,7 +20,7 @@ describe('validate', function () {
 
     results = validate({
       number: {
-        regexp: /^\d+$/
+        pattern: /^\d+$/
       }
     }, {
       number: 'a'
@@ -48,7 +48,7 @@ describe('validate', function () {
 
     results = validate({
       number: {
-        regexp: '^\\d+$',
+        pattern: '^\\d+$',
         invalid: 'Only number allowed'
       }
     }, {
@@ -60,7 +60,7 @@ describe('validate', function () {
 
     results = validate({
       number: {
-        regexp: /^\d+$/,
+        pattern: /^\d+$/,
         invalid: 'Only number allowed'
       }
     }, {
@@ -89,7 +89,7 @@ describe('validate', function () {
 
     results = validate({
       number: {
-        regexp: '^\\d+$'
+        pattern: '^\\d+$'
       }
     }, {
       number: 1

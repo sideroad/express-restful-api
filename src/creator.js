@@ -11,9 +11,10 @@ var _ = require('lodash'),
     pluralize = require('pluralize'),
     camelize = require('camelize'),
     cors = require('cors'),
-    unroute = require('unroute');
+    unroute = require('unroute'),
+    passport = require('passport');
 
-var Creator = function(mongoose, router, cors, prefix){
+var Creator = function(mongoose, router, cors, prefix, auth){
   this.mongoose = mongoose;
   this.router = router;
   this.prefix = prefix || '';
@@ -33,6 +34,27 @@ var Creator = function(mongoose, router, cors, prefix){
         credentials: true
       } : cors
     ));
+  }
+  if(auth) {
+    var Strategy = require('passport-' + auth.connect).Strategy;
+    passport.serializeUser(function(user, done) {
+      done(null, user);
+    });
+
+    passport.deserializeUser(function(obj, done) {
+      done(null, obj);
+    });
+    passport.use(new Strategy({
+        clientID: auth.client,
+        clientSecret: auth.secret
+      },
+      function(accessToken, refreshToken, profile, done) {
+        console.log(accessToken, refreshToken, profile);
+        return done(null, profile);
+      }
+    ));
+
+    this.passport = passport;
   }
 };
 
@@ -348,6 +370,24 @@ Creator.prototype = {
     return process;
   },
 
+  auth: function(key, model){
+    var needAuth = false;
+    Object.keys( model ).forEach(function( attr ){
+      if ( model[attr].type === 'auth' ) {
+        needAuth = true;
+      }
+    });
+    return needAuth ? function(req, res, next){
+      console.log(req.user);
+      if (req.isAuthenticated()) {
+        return next();
+      }
+      res.status(401).send(null);
+    } : function(req, res, next){
+      next();
+    };
+  },
+
   getCollection: function(key, model){
     var that = this,
         keys = pluralize(key),
@@ -365,7 +405,7 @@ Creator.prototype = {
       name: 'Get collection',
       collection: true
     });
-    this.router.get(prefix + '/'+keys, function(req, res){
+    this.router.get(prefix + '/'+keys, this.auth(key, model), function(req, res){
       var offset = Number(req.query.offset || 0),
           limit = Number(req.query.limit || 25),
           cond = that.cond(model, req),
@@ -439,7 +479,7 @@ Creator.prototype = {
       name: 'Create instance',
       create: true
     });
-    this.router.post(prefix + '/'+keys, function(req, res){
+    this.router.post(prefix + '/'+keys, this.auth(key, model), function(req, res){
       var id,
           text = '',
           uniqKeys = that.getUniqKeys(model),
@@ -539,7 +579,7 @@ Creator.prototype = {
       name: 'Get instance',
       model: model
     });
-    this.router.get(prefix + '/'+keys + '/:id', function(req, res){
+    this.router.get(prefix + '/'+keys + '/:id', this.auth(key, model), function(req, res){
       var id = req.params.id;
 
       async.waterfall([
@@ -600,7 +640,7 @@ Creator.prototype = {
       name: 'Get '+key+' collection',
       collection: true
     });
-    this.router.get(prefix + '/'+parentKeys+'/:id/'+key, function(req, res){
+    this.router.get(prefix + '/'+parentKeys+'/:id/'+key, this.auth(key, model), function(req, res){
       var id = req.params.id,
           offset = Number(req.query.offset || 0),
           limit = Number(req.query.limit || 25),
@@ -672,7 +712,7 @@ Creator.prototype = {
       group: key,
       name: 'Update instance'
     });
-    this.router.put(prefix + '/' + keys + '/:id', function(req, res){
+    this.router.put(prefix + '/' + keys + '/:id', this.auth(key, model), function(req, res){
       var params = that.params( model, req );
 
       async.waterfall([
@@ -730,7 +770,7 @@ Creator.prototype = {
       group : key,
       name: 'Update instance'
     });
-    this.router.post(prefix + '/' + keys + '/:id', function(req, res){
+    this.router.post(prefix + '/' + keys + '/:id', this.auth(key, model), function(req, res){
       var params = that.params( model, req ),
           results = [
             that.validatePermission( model, params ),
@@ -792,7 +832,7 @@ Creator.prototype = {
       name: 'Delete collection',
       collection: true
     });
-    this.router.delete(prefix + '/'+keys, function(req, res){
+    this.router.delete(prefix + '/'+keys, this.auth(key, model), function(req, res){
       async.waterfall([
         function(callback){
           var cond = that.cond(model, req);
@@ -835,7 +875,7 @@ Creator.prototype = {
       group: key,
       name: 'Delete instance'
     });
-    this.router.delete(prefix + '/'+keys+'/:id', function(req, res){
+    this.router.delete(prefix + '/'+keys+'/:id', this.auth(key, model), function(req, res){
       async.waterfall([
         function(callback){
           that.models[key].findOneAndRemove({
@@ -873,7 +913,7 @@ Creator.prototype = {
       name: 'Validate parameters',
       validate: true
     });
-    this.router.get(prefix + '/validate/'+keys, function(req, res){
+    this.router.get(prefix + '/validate/'+keys, this.auth(key, model), function(req, res){
       var params = that.params( model, req ),
           results = validate( model, params );
 

@@ -4,7 +4,7 @@ module.exports = function(config, params, isPartialMatch){
   var errors = {};
 
   _.map( isPartialMatch ? params : config, function(value, key){
-    var regexp = config[key].regexp || '',
+    var pattern = config[key].pattern || '',
         invalid = config[key].invalid,
         value = params[key];
 
@@ -14,8 +14,8 @@ module.exports = function(config, params, isPartialMatch){
         (config[key].uniq     && value === '') ||
         (config[key].required && value === null) ||
         (config[key].uniq     && value === null) ||
-        (regexp && regexp instanceof RegExp   && !regexp.test(value))   ||
-        (regexp && typeof regexp === 'string' && !new RegExp(regexp).test(value)) ) {
+        (pattern && pattern instanceof RegExp   && !pattern.test(value))   ||
+        (pattern && typeof pattern === 'string' && !new RegExp(pattern).test(value)) ) {
       errors[key] = invalid || 'Invalid value['+value+']';
     }
   });
