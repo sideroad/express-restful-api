@@ -230,7 +230,10 @@ Creator.prototype = {
                    type === 'date'   ?  'range' : 'wildcard';
 
       val = val && val.length ? val : '';
-      cond[key] = search === 'wildcard'                          ? new RegExp('^'+val.replace(/\*/g, '.*') + '$') :
+      cond[key] = search === 'wildcard' ? new RegExp('^'+val.replace(/\[/g, '\\[')
+                                                            .replace(/\]/g, '\\]')
+                                                            .replace(/\./g, '\\.')
+                                                            .replace(/\*/g, '.*') + '$') :
                   search === 'range' && /^\[.+\,.+\]$/.test(val) ? {
                                                                      $gte: val.match(/^\[(.+)\,(.+)\]$/)[1],
                                                                      $lte: val.match(/^\[(.+)\,(.+)\]$/)[2]
