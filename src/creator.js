@@ -403,6 +403,9 @@ Creator.prototype = {
         type: attr.type === 'number' ? 'number' :
               attr.type === 'boolean' ? 'boolean' : 'string'
       };
+      if ( attr.type === 'date' ) {
+        json.properties[key].format = 'date';
+      }
       if ( attr.pattern ) {
         json.properties[key].pattern = new RegExp(attr.pattern).toString();
       }
