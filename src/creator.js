@@ -404,7 +404,7 @@ Creator.prototype = {
               attr.type === 'boolean' ? 'boolean' : 'string'
       };
       if ( attr.pattern ) {
-        json.properties[key].pattern = attr.pattern.toString();
+        json.properties[key].pattern = new RegExp(attr.pattern).toString();
       }
       if ( attr.uniq || attr.required ) {
         json.required.push(key);
