@@ -867,6 +867,49 @@ describe('Creator', function () {
     });
   });
 
+  it('should create get collection routing', function(done) {
+    async.waterfall([
+      function(callback){
+        request(app)
+          .get('/api/companies')
+          .expect(200)
+          .end(function(err, res){
+            should.not.exist(err);
+            res.body.should.have.property('offset', 0);
+            res.body.should.have.property('limit', 25);
+            res.body.should.have.property('first', null);
+            res.body.should.have.property('last',  null);
+            res.body.should.have.property('next', null);
+            res.body.should.have.property('prev', null);
+            res.body.items.should.have.property('length', 0);
+            callback();
+          });
+      },
+      function(callback){
+        createCompany(callback);
+      },
+      function(callback){
+        request(app)
+          .get('/api/companies')
+          .set('x-json-schema', 'true')
+          .expect(200)
+          .end(function(err, res){
+            should.not.exist(err);
+            res.body.should.have.property('properties');
+            res.body.properties.should.have.property('name');
+            res.body.properties.name.should.have.property('pattern', '/^[a-zA-Z 0-9]+$/');
+            res.body.properties.name.should.have.property('type', 'string');
+            res.body.properties.isStockListing.should.have.property('type', 'boolean');
+            res.body.required.length.should.equal(1);
+            res.body.required[0].should.equal('name');
+            callback();
+          });
+      },
+    ], function(err){
+      done(err);
+    });
+  });
+
   it('should create get instance routing', function(done) {
 
     async.waterfall([

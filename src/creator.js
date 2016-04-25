@@ -391,6 +391,29 @@ Creator.prototype = {
     };
   },
 
+  getJsonSchema: function(key, model){
+    var json = {
+      properties: {},
+      required: []
+    };
+
+    Object.keys(model).forEach(function(key){
+      var attr = model[key];
+      json.properties[key] = {
+        type: attr.type === 'number' ? 'number' :
+              attr.type === 'boolean' ? 'boolean' : 'string'
+      };
+      if ( attr.pattern ) {
+        json.properties[key].pattern = attr.pattern.toString();
+      }
+      if ( attr.uniq || attr.required ) {
+        json.required.push(key);
+      }
+    });
+
+    return json;
+  },
+
   getCollection: function(key, model){
     var that = this,
         keys = pluralize(key),
@@ -408,54 +431,65 @@ Creator.prototype = {
       name: 'Get collection',
       collection: true
     });
-    this.router.get(prefix + '/'+keys, this.auth(key, model), function(req, res){
-      var offset = Number(req.query.offset || 0),
-          limit = Number(req.query.limit || 25),
-          cond = that.cond(model, req),
-          prev = offset - limit,
-          next = offset + limit;
-
-      async.waterfall([
-        function(callback){
-          var reqFields = req.query.fields;
-
-          that.models[key].find(cond, reqFields ? reqFields.replace(/,/g, ' ') + ' -_id' : fields, {
-            skip: offset,
-            limit: limit
-          }, function(err, collection){
-            callback(err, collection);
-          });
-        },
-        function(collection, callback){
-          that.models[key].count(cond, function(err, size){
-            callback(err, collection, size);
-          });
+    this.router.get(
+      prefix + '/'+keys,
+      this.auth(key, model),
+      function(req, res, next){
+        if ( req.headers['x-json-schema'] ){
+          res.json(that.getJsonSchema(key, model)).end();
+        } else {
+          next();
         }
-      ], function done(err, collection, size){
-        resutils.accessControl(res, req, that.cors);
+      },
+      function(req, res){
+        var offset = Number(req.query.offset || 0),
+            limit = Number(req.query.limit || 25),
+            cond = that.cond(model, req),
+            prev = offset - limit,
+            next = offset + limit;
 
-        if(err) {
-          resutils.error(res, err);
-          return;
-        }
+        async.waterfall([
+          function(callback){
+            var reqFields = req.query.fields;
 
-        collection = that.href(model, keys, collection);
+            that.models[key].find(cond, reqFields ? reqFields.replace(/,/g, ' ') + ' -_id' : fields, {
+              skip: offset,
+              limit: limit
+            }, function(err, collection){
+              callback(err, collection);
+            });
+          },
+          function(collection, callback){
+            that.models[key].count(cond, function(err, size){
+              callback(err, collection, size);
+            });
+          }
+        ], function done(err, collection, size){
+          resutils.accessControl(res, req, that.cors);
 
-        var json = {
-              offset: offset,
-              limit: limit,
-              size: size,
-              first: size                 ? prefix + '/'+keys+'?offset=0&limit=' + limit : null,
-              last:  size                 ? prefix + '/'+keys+'?offset=' + ( ( Math.ceil( size / limit ) - 1 ) * limit ) + '&limit=' + limit : null,
-              prev:  size && offset !== 0 ? prefix + '/'+keys+'?offset=' + ( prev < 0 ? 0 : prev ) + '&limit=' + limit : null,
-              next:  size && next < size  ? prefix + '/'+keys+'?offset=' + next + '&limit=' + limit : null,
-              items: collection
-            };
+          if(err) {
+            resutils.error(res, err);
+            return;
+          }
 
-        res.json(json);
-        res.end();
-      });
-    });
+          collection = that.href(model, keys, collection);
+
+          var json = {
+                offset: offset,
+                limit: limit,
+                size: size,
+                first: size                 ? prefix + '/'+keys+'?offset=0&limit=' + limit : null,
+                last:  size                 ? prefix + '/'+keys+'?offset=' + ( ( Math.ceil( size / limit ) - 1 ) * limit ) + '&limit=' + limit : null,
+                prev:  size && offset !== 0 ? prefix + '/'+keys+'?offset=' + ( prev < 0 ? 0 : prev ) + '&limit=' + limit : null,
+                next:  size && next < size  ? prefix + '/'+keys+'?offset=' + next + '&limit=' + limit : null,
+                items: collection
+              };
+
+          res.json(json);
+          res.end();
+        });
+      }
+    );
   },
 
   getUniqKeys: function(model){
