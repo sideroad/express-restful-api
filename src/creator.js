@@ -112,7 +112,8 @@ Creator.prototype = {
                 );
             }
 
-            if( doc.method === 'get' ) {
+            if( doc.method === 'get' &&
+                !doc.validate ) {
               params.push('@apiParam {String} [fields] Pertial attribution will be responsed.');
               params.push('                   Attributions should be separated with comma.');
             }
@@ -475,7 +476,7 @@ Creator.prototype = {
       this.auth(key, model),
       function(req, res, next){
         if ( req.headers['x-json-schema'] === 'true' ){
-          res.json(that.getJsonSchema(key, model)).end();
+          res.status(200).json(that.getJsonSchema(key, model)).end();
         } else {
           next();
         }
@@ -484,8 +485,7 @@ Creator.prototype = {
         if ( req.headers['x-validation'] === 'true' ){
           var params = that.params( model, req ),
               results = validate( model, params );
-
-          res.status( results.ok ? 200 : 400).json( results );
+          res.status( results.ok ? 200 : 400).json( results ).end();
         } else {
           next();
         }
