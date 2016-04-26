@@ -86,21 +86,18 @@ describe('Creator', function () {
     creator.postAsUpdate('company', schema.company);
     creator.postInstance('company', schema.company);
     creator.deleteCollection('company', schema.company);
-    creator.validate('company', schema.company);
 
     creator.model('person', schema.person);
     creator.getInstance('person', schema.person);
     creator.getCollection('person', schema.person);
     creator.postInstance('person', schema.person);
     creator.deleteCollection('person', schema.person);
-    creator.validate('person', schema.person);
 
     creator.model('holiday', schema.holiday);
     creator.getInstance('holiday', schema.holiday);
     creator.getCollection('holiday', schema.holiday);
     creator.postInstance('holiday', schema.holiday);
     creator.deleteCollection('holiday', schema.holiday);
-    creator.validate('holiday', schema.holiday);
 
   });
 
@@ -223,7 +220,8 @@ describe('Creator', function () {
   var validateCompany = function(callback){
     async.mapSeries(validCompanies, function(data, callback){
       request(app)
-        .get('/api/validate/companies')
+        .get('/api/companies')
+        .set('X-Validation', 'true')
         .send(data)
         .expect(200)
         .end(function(err, res){
@@ -239,7 +237,8 @@ describe('Creator', function () {
 
   var validateInvalidCompany = function(callback){
     request(app)
-      .get('/api/validate/companies')
+      .get('/api/companies')
+      .set('X-Validation', 'true')      
       .send(invalidCompany)
       .expect(400)
       .end(function(err, res){

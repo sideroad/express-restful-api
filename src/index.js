@@ -42,7 +42,6 @@ module.exports = {
 
       creator.deleteCollection(key, model);
       creator.deleteInstance(key, model);
-      creator.validate(key, model);
     }
     this.creator = creator;
     return router;

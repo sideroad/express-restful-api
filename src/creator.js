@@ -116,9 +116,18 @@ Creator.prototype = {
               params.push('@apiParam {String} [fields] Pertial attribution will be responsed.');
               params.push('                   Attributions should be separated with comma.');
             }
+
+            if ( doc.params ) {
+              params = _.map(doc.params, function(value, key){
+                return '@apiParam {String} ' + key + ' ' + value;
+              });
+            }
             return params.join('\n * ')
         },
-        apiSuccess = doc.method !== 'get' ? '' :
+        apiSuccess = doc.response ? _.map(doc.response, function(value, key){
+                       return '@apiSuccess {String} ' + key + ' ' + value;
+                     }) :
+                     doc.method !== 'get' ? '' :
                      doc.collection ? [
                        '@apiSuccess {Number} offset',
                        '@apiSuccess {Number} limit',
@@ -140,7 +149,11 @@ Creator.prototype = {
                                  (attr.desc                ? attr.desc :
                                   attr.type === 'children' ? 'linking of ' + ( attr.relation ) :
                                   attr.type === 'instance' ? 'linking of ' + ( attr.relation ) : '');
-                     }).join('\n * ');
+                     }).join('\n * '),
+        apiHeader = !doc.headers ? ''
+                                 : _.map( doc.headers, function( value, header ){
+                                   return '@apiHeader {String} ' + header + ' ' + value;
+                                 });
 
     this.docs.push(
       '/**\n'+
@@ -149,6 +162,7 @@ Creator.prototype = {
       ' * @apiGroup ' + group  + '\n' +
       ' * ' + getApiParam()    + '\n' +
       ' * ' + apiSuccess       + '\n' +
+      ' * ' + apiHeader        + '\n' +
       ' */\n'
     );
     this.docOrder.push(apiName);
@@ -434,12 +448,44 @@ Creator.prototype = {
       name: 'Get collection',
       collection: true
     });
+    this.doc({
+      method: 'get',
+      url : prefix + '/'+keys,
+      group: key,
+      params: {},
+      response: {},
+      name: 'Get JSON Schema',
+      headers: {
+        'X-JSON-Schema': 'When the header has true, response JSON Schema instead'
+      }
+    });
+    this.doc({
+      method: 'get',
+      url : prefix + '/'+keys,
+      group: key,
+      name: 'Validate parameters',
+      validate: true,
+      headers: {
+        'X-Validation': 'When the header has true, validate parameters'
+      }
+    });
+
     this.router.get(
       prefix + '/'+keys,
       this.auth(key, model),
       function(req, res, next){
-        if ( req.headers['x-json-schema'] ){
+        if ( req.headers['x-json-schema'] === 'true' ){
           res.json(that.getJsonSchema(key, model)).end();
+        } else {
+          next();
+        }
+      },
+      function(req, res, next){
+        if ( req.headers['x-validation'] === 'true' ){
+          var params = that.params( model, req ),
+              results = validate( model, params );
+
+          res.status( results.ok ? 200 : 400).json( results );
         } else {
           next();
         }
@@ -519,7 +565,7 @@ Creator.prototype = {
       name: 'Create instance',
       create: true
     });
-    this.router.post(prefix + '/'+keys, this.auth(key, model), function(req, res){
+    this.router.post( prefix + '/'+keys, this.auth(key, model), function(req, res){
       var id,
           text = '',
           uniqKeys = that.getUniqKeys(model),
@@ -935,29 +981,6 @@ Creator.prototype = {
         res.status(200).send(null);
       });
 
-    });
-  },
-
-  validate: function(key, model){
-    var that = this,
-        keys = pluralize(key),
-        prefix = this.prefix;
-    /**
-     * Validate parameters
-     */
-
-    this.doc({
-      method: 'get',
-      url : prefix + '/validate/'+keys,
-      group: key,
-      name: 'Validate parameters',
-      validate: true
-    });
-    this.router.get(prefix + '/validate/'+keys, this.auth(key, model), function(req, res){
-      var params = that.params( model, req ),
-          results = validate( model, params );
-
-      res.status( results.ok ? 200 : 400).json( results );
     });
   },
 
