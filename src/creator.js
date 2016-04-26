@@ -141,6 +141,12 @@ Creator.prototype = {
                      ].join('\n * ') :
                      _.map(schemas[doc.group], function(schema, key){
                        var attr = responseAttrs[doc.group][key] || {};
+                       if ( doc.validate && ( key === 'id' ||
+                                              key === 'createdAt' ||
+                                              key === 'updatedAt' ||
+                                              attr.type === 'children') ) {
+                         return '';
+                       }
                        return '@apiSuccess {'+
                                  (attr.type === 'number'   ? 'Number'  :
                                   attr.type === 'boolean'  ? 'Boolean' :
