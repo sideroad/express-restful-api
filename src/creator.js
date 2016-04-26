@@ -483,9 +483,15 @@ Creator.prototype = {
       },
       function(req, res, next){
         if ( req.headers['x-validation'] === 'true' ){
-          var params = that.params( model, req ),
-              results = validate( model, params );
-          res.status( results.ok ? 200 : 400).json( results ).end();
+          async.waterfall(that.validateRelatedDataExistance(req, model), function done(err){
+            var params = that.params( model, req ),
+                results = validate( model, params );
+            if ( err ) {
+              resutils.error(res, err);
+            } else {
+              res.status( results.ok ? 200 : 400).json( results ).end();
+            }
+          });
         } else {
           next();
         }
