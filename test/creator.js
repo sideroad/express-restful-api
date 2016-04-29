@@ -64,8 +64,7 @@ var assert = require('assert'),
       }
     },
     req,
-    client,
-    cors = true;
+    client;
 
 describe('Creator', function () {
 
@@ -74,7 +73,7 @@ describe('Creator', function () {
     mongoose.models = {};
     mongoose.modelSchemas = {};
 
-    creator = new Creator(mongoose, router, cors, prefix);
+    creator = new Creator(mongoose, router, prefix);
     app.use(bodyParser.json());
     app.use(router);
 
@@ -238,7 +237,7 @@ describe('Creator', function () {
   var validateInvalidCompany = function(callback){
     request(app)
       .get('/api/companies')
-      .set('X-Validation', 'true')      
+      .set('X-Validation', 'true')
       .send(invalidCompany)
       .expect(400)
       .end(function(err, res){

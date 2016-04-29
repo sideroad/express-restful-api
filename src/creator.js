@@ -10,31 +10,19 @@ var _ = require('lodash'),
     apidoc = require('apidoc'),
     pluralize = require('pluralize'),
     camelize = require('camelize'),
-    cors = require('cors'),
     unroute = require('unroute'),
     passport = require('passport');
 
-var Creator = function(mongoose, router, cors, prefix, auth){
+var Creator = function(mongoose, router, prefix, auth){
   this.mongoose = mongoose;
   this.router = router;
   this.prefix = prefix || '';
-  this.cors = cors;
   this.models = {};
   this.schemas = {};
   this.requestAttrs = {};
   this.responseAttrs = {};
   this.docs = [];
   this.docOrder = [];
-  if(cors) {
-    router.options('*', require('cors')(
-      cors === true ? {
-        origin: function(origin, callback){
-          callback(null, [origin]);
-        },
-        credentials: true
-      } : cors
-    ));
-  }
   if(auth) {
     var Strategy = require('passport-' + auth.connect).Strategy;
     passport.serializeUser(function(user, done) {
@@ -526,8 +514,6 @@ Creator.prototype = {
             });
           }
         ], function done(err, collection, size){
-          resutils.accessControl(res, req, that.cors);
-
           if(err) {
             resutils.error(res, err);
             return;
@@ -648,8 +634,6 @@ Creator.prototype = {
       ]);
 
       async.waterfall(process, function done(err){
-        resutils.accessControl(res, req, that.cors);
-
         if(err) {
           resutils.error(res, err);
           return;
@@ -700,7 +684,6 @@ Creator.prototype = {
           });
         }
       ], function done(err, instance){
-        resutils.accessControl(res, req, that.cors);
         if(err) {
           resutils.error(res, err);
           return;
@@ -767,8 +750,6 @@ Creator.prototype = {
           });
         }
       ], function done(err, collection, size){
-        resutils.accessControl(res, req, that.cors);
-
         if(err) {
           resutils.error(res, err);
           return;
@@ -826,8 +807,6 @@ Creator.prototype = {
           });
         }
       ], function done(err, instance){
-        resutils.accessControl(res, req, that.cors);
-
         if(err) {
           resutils.error(res, err);
           return;
@@ -902,8 +881,6 @@ Creator.prototype = {
             });
           }
         ]).concat(that.getProcessUpdateParent(req, model, that.models[key])), function done(err, instance){
-        resutils.accessControl(res, req, that.cors);
-
         if(err) {
           resutils.error(res, err);
           return;
@@ -946,7 +923,6 @@ Creator.prototype = {
           });
         }
       ], function done(err){
-        resutils.accessControl(res, req, that.cors);
 
         if(err) {
           resutils.error(res, err);
@@ -983,8 +959,6 @@ Creator.prototype = {
           });
         }
       ], function done(err, instance){
-        resutils.accessControl(res, req, that.cors);
-
         if(err) {
           resutils.error(res, err);
           return;

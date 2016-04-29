@@ -60,8 +60,7 @@ var assert = require('assert'),
       }
     },
     req,
-    client,
-    cors = true;
+    client;
 
 describe('Creator Unroute', function () {
 
@@ -69,7 +68,7 @@ describe('Creator Unroute', function () {
     mongoose.connect(process.env.MONGO_URL);
     mongoose.models = {};
     mongoose.modelSchemas = {};
-    creator = new Creator(mongoose, router, cors, '/api');
+    creator = new Creator(mongoose, router, '/api');
     app.use(bodyParser.json());
     app.use(router);
 

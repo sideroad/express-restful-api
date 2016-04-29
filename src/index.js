@@ -12,7 +12,6 @@ module.exports = {
         model,
         router = express.Router(),
         schema = options.schema,
-        cors = options.cors,
         auth = options.auth,
         prefix = options.prefix,
         applyChildren = function(key, schema, model){
@@ -28,7 +27,7 @@ module.exports = {
     } else {
       mongoose = options.mongo;
     }
-    creator = new Creator(mongoose, router, cors, prefix, auth);
+    creator = new Creator(mongoose, router, prefix, auth);
 
     for( key in schema ){
       model = schema[key];

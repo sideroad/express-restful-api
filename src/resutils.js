@@ -7,24 +7,5 @@ module.exports = {
         msg: err.message
       })
       .end();
-  },
-  accessControl: function(res, req, cors){
-    if(!cors) {
-      return;
-    }
-    var header = req.method === 'OPTIONS' ||
-                 req.method === 'POST'    ||
-                 req.method === 'PUT' ? {
-                  'Access-Control-Allow-Origin': req.get('origin'),
-                  'Access-Control-Allow-Methods':'POST, GET, OPTIONS',
-                  'Access-Control-Allow-Headers':'Origin, X-Requested-With, Content-Type, Accept, X-PINGOTHER',
-                  'Access-Control-Allow-Credentials': true
-                 } : {
-                  'Access-Control-Allow-Origin': req.get('origin'),
-                  'Access-Control-Allow-Methods':'POST, GET, OPTIONS',
-                  'Access-Control-Allow-Headers':'*',
-                  'Access-Control-Allow-Credentials': true
-                 };
-    res.set(header);
   }
 };

@@ -42,40 +42,4 @@ describe('error', function () {
 
     done();
   });
-
-  it('should set access control header', function (done) {
-    resutils.accessControl({
-      set: function(header){
-        header.should.deepEqual({
-          'Access-Control-Allow-Origin': 'hogehoge.com',
-          'Access-Control-Allow-Methods':'POST, GET, OPTIONS',
-          'Access-Control-Allow-Headers':'Origin, X-Requested-With, Content-Type, Accept, X-PINGOTHER',
-          'Access-Control-Allow-Credentials': true
-        });
-      }
-    }, {
-      method: 'POST',
-      get: function(){
-        return 'hogehoge.com';
-      }
-    });
-
-    resutils.accessControl({
-      set: function(header){
-        header.should.deepEqual({
-          'Access-Control-Allow-Origin': 'hogehoge.com',
-          'Access-Control-Allow-Methods':'POST, GET, OPTIONS',
-          'Access-Control-Allow-Headers':'*',
-          'Access-Control-Allow-Credentials': true
-        });
-      }
-    }, {
-      method: 'GET',
-      get: function(){
-        return 'hogehoge.com';
-      }
-    });
-
-    done();
-  });
 });
