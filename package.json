@@ -1,6 +1,6 @@
 {
   "name": "express-restful-api",
-  "version": "10.0.6",
+  "version": "10.1.0",
   "main": "src/index.js",
   "scripts": {
     "test": "mocha test --timeout=20000"
