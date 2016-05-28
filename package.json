@@ -9,7 +9,6 @@
     "apidoc": "^0.14.0",
     "async": "^0.9.0",
     "camelize": "^1.0.0",
-    "cors": "^2.7.1",
     "express": "^4.13.4",
     "express-session": "^1.13.0",
     "fs-extra": "^0.26.2",

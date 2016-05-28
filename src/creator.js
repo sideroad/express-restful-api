@@ -451,7 +451,7 @@ Creator.prototype = {
       response: {},
       name: 'Get JSON Schema',
       headers: {
-        'X-JSON-Schema': 'When the header has true, response JSON Schema instead'
+        'X-JSON-Schema': 'When the header has <code>true</code>, response JSON Schema instead'
       }
     });
     this.doc({
@@ -461,7 +461,7 @@ Creator.prototype = {
       name: 'Validate parameters',
       validate: true,
       headers: {
-        'X-Validation': 'When the header has true, validate parameters'
+        'X-Validation': 'When the header has <code>true</code>, validate parameters'
       }
     });
 
