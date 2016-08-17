@@ -194,7 +194,7 @@ Creator.prototype = {
     }, schemaType), { minimize: false });
     schema.index({ id: 1 });
 
-    model = this.mongoose.model(this.prefix + key, schema);
+    model = this.mongoose.model((this.prefix + key).replace(/\//g, '_'), schema);
     this.models[key]  = model;
     this.schemas[key] = schemaType;
     this.responseAttrs[key]   = attr;
