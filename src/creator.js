@@ -29,7 +29,7 @@ var Creator = function(mongoose, router, prefix, before, after){
     next();
   };
   this.after = after ? function(req, res, json){
-    after(req, res, json);
+    after(req, res, json, that.models);
   } : function(req, res, json) {
     json ? res.json(json)
          : res.send(null).end();

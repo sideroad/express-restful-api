@@ -48,32 +48,9 @@ var router = creator.router({
         type: 'number'
       }
     }
-  },
-  auth: {
-    connect: 'github2',
-    client: process.env.GITHUB_CLIENT_ID,
-    secret: process.env.GITHUB_CLIENT_SECRET
   }
 });
 
-var passport = creator.passport();
-app.use(session({ secret: 'keyboard cat', resave: true, saveUninitialized: true }));
-app.use(passport.initialize());
-app.use(passport.session());
-
 app.use('/', router);
-
-app.get('/auth/github',
-  passport.authenticate('github', { scope: [ 'user:email' ] }),
-  function(req, res){
-    // The request will be redirected to GitHub for authentication, so this
-    // function will not be called.
-  });
-
-app.get('/auth/github/callback',
-  passport.authenticate('github', { failureRedirect: '/login' }),
-  function(req, res) {
-    res.redirect('/github');
-  });
 
 app.listen(3000);
