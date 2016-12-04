@@ -12,8 +12,9 @@ module.exports = {
         model,
         router = express.Router(),
         schema = options.schema,
-        auth = options.auth,
         prefix = options.prefix,
+        before = options.before,
+        after = options.after,
         applyChildren = function(key, schema, model){
           _.each(model, function(attr, childKey){
             if(attr.type === 'children') {
@@ -27,7 +28,7 @@ module.exports = {
     } else {
       mongoose = options.mongo;
     }
-    creator = new Creator(mongoose, router, prefix, auth);
+    creator = new Creator(mongoose, router, prefix, before, after);
 
     for( key in schema ){
       model = schema[key];
@@ -44,9 +45,6 @@ module.exports = {
     }
     this.creator = creator;
     return router;
-  },
-  passport: function(){
-    return creator.passport;
   },
   doc: function(doc){
     creator.createDoc(doc);

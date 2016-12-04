@@ -10,10 +10,10 @@ var _ = require('lodash'),
     apidoc = require('apidoc'),
     pluralize = require('pluralize'),
     camelize = require('camelize'),
-    unroute = require('unroute'),
-    passport = require('passport');
+    unroute = require('unroute');
 
-var Creator = function(mongoose, router, prefix, auth){
+var Creator = function(mongoose, router, prefix, before, after){
+  var that = this;
   this.mongoose = mongoose;
   this.router = router;
   this.prefix = prefix || '';
@@ -23,27 +23,17 @@ var Creator = function(mongoose, router, prefix, auth){
   this.responseAttrs = {};
   this.docs = [];
   this.docOrder = [];
-  if(auth) {
-    var Strategy = require('passport-' + auth.connect).Strategy;
-    passport.serializeUser(function(user, done) {
-      done(null, user);
-    });
-
-    passport.deserializeUser(function(obj, done) {
-      done(null, obj);
-    });
-    passport.use(new Strategy({
-        clientID: auth.client,
-        clientSecret: auth.secret
-      },
-      function(accessToken, refreshToken, profile, done) {
-        console.log(accessToken, refreshToken, profile);
-        return done(null, profile);
-      }
-    ));
-
-    this.passport = passport;
-  }
+  this.before = before ? function( req, res, next ){
+    before(req, res, next, that.models);
+  } : function( req, res, next ){
+    next();
+  };
+  this.after = after ? function(req, res, json){
+    after(req, res, json);
+  } : function(req, res, json) {
+    json ? res.json(json)
+         : res.send(null).end();
+  };
 };
 
 Creator.prototype = {
@@ -382,24 +372,6 @@ Creator.prototype = {
     return process;
   },
 
-  auth: function(key, model){
-    var needAuth = false;
-    Object.keys( model ).forEach(function( attr ){
-      if ( model[attr].type === 'auth' ) {
-        needAuth = true;
-      }
-    });
-    return needAuth ? function(req, res, next){
-      console.log(req.user);
-      if (req.isAuthenticated()) {
-        return next();
-      }
-      res.status(401).send(null);
-    } : function(req, res, next){
-      next();
-    };
-  },
-
   getJsonSchema: function(key, model){
     var json = {
       properties: {},
@@ -430,7 +402,8 @@ Creator.prototype = {
     var that = this,
         keys = pluralize(key),
         fields = this.fields(key),
-        prefix = this.prefix;
+        prefix = this.prefix,
+        after = this.after;
 
     /**
      * Return collection
@@ -467,7 +440,7 @@ Creator.prototype = {
 
     this.router.get(
       prefix + '/'+keys,
-      this.auth(key, model),
+      this.before,
       function(req, res, next){
         if ( req.headers['x-json-schema'] === 'true' ){
           res.status(200).json(that.getJsonSchema(key, model)).end();
@@ -531,9 +504,7 @@ Creator.prototype = {
                 next:  size && next < size  ? prefix + '/'+keys+'?offset=' + next + '&limit=' + limit : null,
                 items: collection
               };
-
-          res.json(json);
-          res.end();
+          after(req, res, json);
         });
       }
     );
@@ -551,7 +522,8 @@ Creator.prototype = {
   postInstance: function(key, model){
     var that = this,
         keys = pluralize(key),
-        prefix = this.prefix;
+        prefix = this.prefix,
+        after = this.after;
     /**
      * Create new instance data and return instance URI with 201 status code
      */
@@ -563,92 +535,98 @@ Creator.prototype = {
       name: 'Create instance',
       create: true
     });
-    this.router.post( prefix + '/'+keys, this.auth(key, model), function(req, res){
-      var id,
-          text = '',
-          uniqKeys = that.getUniqKeys(model),
-          texts = _.chain(model)
-                   .map(function(value, key){
-                     return value.text ? key : undefined;
-                   })
-                   .compact()
-                   .value(),
-          md5 = crypto.createHash('md5'),
-          params = that.params( model, req ),
-          process = [],
-          results = validate(model, params);
+    this.router.post(
+      prefix + '/'+keys,
+      this.before,
+      function(req, res){
+        var id,
+            text = '',
+            uniqKeys = that.getUniqKeys(model),
+            texts = _.chain(model)
+                     .map(function(value, key){
+                       return value.text ? key : undefined;
+                     })
+                     .compact()
+                     .value(),
+            md5 = crypto.createHash('md5'),
+            params = that.params( model, req ),
+            process = [],
+            results = validate(model, params);
 
-      if( !results.ok ) {
-        res.status(400).json( results );
-        return;
-      }
-
-      id = uniqKeys.map(function(key){
-        var val = params[key];
-        return String( val != null ? val : '' ).replace(/[\s\.\/]+/g, '_').toLowerCase();
-      }).join('-');
-
-      if(!id){
-        md5.update(new Date().getTime() + ':' + Math.random());
-        id = md5.digest('hex').substr(0,7);
-      }
-
-      text = texts.map(function(key){
-        return params[key];
-      }).join(' ');
-
-      // Confirm duplicated data existance
-      process.push(function(callback){
-        that.models[key].findOne({id: id}, function(err, instance){
-          callback(instance ? {
-            message: 'Duplicate id exists',
-            code: 409
-          } : null);
-        });
-      });
-
-      // Confirm parent, instance data existance
-      process = process.concat(that.validateRelatedDataExistance(req, model));
-
-      // Push key onto parent object
-      process = process.concat(that.getProcessUpdateParent(req, model, that.models[key]));
-
-      process = process.concat([
-        function(callback){
-          var now = moment().format(),
-              Model = that.models[key],
-              instance = new Model(
-                _.assign({
-                    id: id
-                }, params, {
-                  q: text,
-                  createdAt: now,
-                  updatedAt: now
-                })
-              );
-
-          instance.save(function(err){
-            callback(err);
-          });
-        }
-      ]);
-
-      async.waterfall(process, function done(err){
-        if(err) {
-          resutils.error(res, err);
+        if( !results.ok ) {
+          res.status(400).json( results );
           return;
         }
-        res.location(prefix + '/'+keys+'/' + id );
-        res.status(201).send(null);
-      });
-    });
+
+        id = uniqKeys.map(function(key){
+          var val = params[key];
+          return String( val != null ? val : '' ).replace(/[\s\.\/]+/g, '_').toLowerCase();
+        }).join('-');
+
+        if(!id){
+          md5.update(new Date().getTime() + ':' + Math.random());
+          id = md5.digest('hex').substr(0,7);
+        }
+
+        text = texts.map(function(key){
+          return params[key];
+        }).join(' ');
+
+        // Confirm duplicated data existance
+        process.push(function(callback){
+          that.models[key].findOne({id: id}, function(err, instance){
+            callback(instance ? {
+              message: 'Duplicate id exists',
+              code: 409
+            } : null);
+          });
+        });
+
+        // Confirm parent, instance data existance
+        process = process.concat(that.validateRelatedDataExistance(req, model));
+
+        // Push key onto parent object
+        process = process.concat(that.getProcessUpdateParent(req, model, that.models[key]));
+
+        process = process.concat([
+          function(callback){
+            var now = moment().format(),
+                Model = that.models[key],
+                instance = new Model(
+                  _.assign({
+                      id: id
+                  }, params, {
+                    q: text,
+                    createdAt: now,
+                    updatedAt: now
+                  })
+                );
+
+            instance.save(function(err){
+              callback(err);
+            });
+          }
+        ]);
+
+        async.waterfall(process, function done(err){
+          if(err) {
+            resutils.error(res, err);
+            return;
+          }
+          res.location(prefix + '/'+keys+'/' + id );
+          res.status(201);
+          after(req, res, null);
+        });
+      }
+    );
   },
 
   getInstance: function(key, model){
     var that = this,
         keys = pluralize(key),
         fields = this.fields(key),
-        prefix = this.prefix;
+        prefix = this.prefix,
+        after = this.after;
 
     /**
      * Get specified instance by ID
@@ -661,39 +639,42 @@ Creator.prototype = {
       name: 'Get instance',
       model: model
     });
-    this.router.get(prefix + '/'+keys + '/:id', this.auth(key, model), function(req, res){
-      var id = req.params.id;
+    this.router.get(
+      prefix + '/'+keys + '/:id',
+      this.before,
+      function(req, res){
+        var id = req.params.id;
 
-      async.waterfall([
-        function(callback){
-          var reqFields = req.query.fields;
+        async.waterfall([
+          function(callback){
+            var reqFields = req.query.fields;
 
-          that.models[key].findOne({
-            id: id
-          }, reqFields ? reqFields.replace(/,/g, ' ') + ' -_id' : fields, function( err, instance ){
-            if( !instance ) {
-              err = {
-                err: {
-                  id: 'Specified ID (' + id + ') does not exists in ' + key
-                },
-                code: 404
-              };
-            }
+            that.models[key].findOne({
+              id: id
+            }, reqFields ? reqFields.replace(/,/g, ' ') + ' -_id' : fields, function( err, instance ){
+              if( !instance ) {
+                err = {
+                  err: {
+                    id: 'Specified ID (' + id + ') does not exists in ' + key
+                  },
+                  code: 404
+                };
+              }
 
-            callback(err, instance ? instance : {});
-          });
-        }
-      ], function done(err, instance){
-        if(err) {
-          resutils.error(res, err);
-          return;
-        }
+              callback(err, instance ? instance : {});
+            });
+          }
+        ], function done(err, instance){
+          if(err) {
+            resutils.error(res, err);
+            return;
+          }
 
-        instance = that.href(model, keys, [instance])[0];
-
-        res.send(instance);
-      });
-    });
+          instance = that.href(model, keys, [instance])[0];
+          after(req, res, instance);
+        });
+      }
+    );
   },
 
   getChildren: function(parentKey, attr, key, model){
@@ -701,7 +682,8 @@ Creator.prototype = {
         parentKeys = pluralize(parentKey),
         keys = pluralize(attr.relation),
         fields = this.fields(key),
-        prefix = this.prefix;
+        prefix = this.prefix,
+        after = this.after;
 
     /**
      * /groups/uxd/members
@@ -721,66 +703,67 @@ Creator.prototype = {
       name: 'Get '+key+' collection',
       collection: true
     });
-    this.router.get(prefix + '/'+parentKeys+'/:id/'+key, this.auth(key, model), function(req, res){
-      var id = req.params.id,
-          offset = Number(req.query.offset || 0),
-          limit = Number(req.query.limit || 25),
-          prev = offset - limit,
-          next = offset + limit,
-          cond = that.cond(model, req);
+    this.router.get(
+      prefix + '/'+parentKeys+'/:id/'+key,
+      this.before,
+      function(req, res){
+        var id = req.params.id,
+            offset = Number(req.query.offset || 0),
+            limit = Number(req.query.limit || 25),
+            prev = offset - limit,
+            next = offset + limit,
+            cond = that.cond(model, req);
 
-      delete cond.id;
-      cond[parentKey] = id;
+        delete cond.id;
+        cond[parentKey] = id;
 
-      async.waterfall([
-        function(callback){
-          var reqFields = req.query.fields;
+        async.waterfall([
+          function(callback){
+            var reqFields = req.query.fields;
 
-          that.models[attr.relation].find(cond, reqFields ? reqFields.replace(/,/g, ' ') + ' -_id' : fields, {
-            skip: offset,
-            limit: limit
-          }, function(err, collection){
-            callback(err, collection);
-          });
-        },
-        function(collection, callback){
+            that.models[attr.relation].find(cond, reqFields ? reqFields.replace(/,/g, ' ') + ' -_id' : fields, {
+              skip: offset,
+              limit: limit
+            }, function(err, collection){
+              callback(err, collection);
+            });
+          },
+          function(collection, callback){
 
-          that.models[attr.relation].count(cond, function(err, size){
-            callback(err, collection, size);
-          });
-        }
-      ], function done(err, collection, size){
-        if(err) {
-          resutils.error(res, err);
-          return;
-        }
+            that.models[attr.relation].count(cond, function(err, size){
+              callback(err, collection, size);
+            });
+          }
+        ], function done(err, collection, size){
+          if(err) {
+            resutils.error(res, err);
+            return;
+          }
 
-        collection = that.href(model, keys, collection);
+          collection = that.href(model, keys, collection);
 
-        var json = {
-              offset: offset,
-              limit: limit,
-              size: size,
-              first: size                 ? prefix + '/'+parentKeys+'/'+id+'/'+key+'?offset=0&limit='+limit : null,
-              last:  size                 ? prefix + '/'+parentKeys+'/'+id+'/'+key+'?offset='+ ( ( Math.ceil( size / limit ) - 1 ) * limit ) + '&limit='+limit : null,
-              prev:  size && offset !== 0 ? prefix + '/'+parentKeys+'/'+id+'/'+key+'?offset='+ ( prev < 0 ? 0 : prev ) + '&limit='+limit : null,
-              next:  size && next < size  ? prefix + '/'+parentKeys+'/'+id+'/'+key+'?offset='+ next + '&limit='+limit : null,
-              items: collection
-            };
-
-        res.json(json);
-        res.end();
-      });
-
-    });
-
+          var json = {
+                offset: offset,
+                limit: limit,
+                size: size,
+                first: size                 ? prefix + '/'+parentKeys+'/'+id+'/'+key+'?offset=0&limit='+limit : null,
+                last:  size                 ? prefix + '/'+parentKeys+'/'+id+'/'+key+'?offset='+ ( ( Math.ceil( size / limit ) - 1 ) * limit ) + '&limit='+limit : null,
+                prev:  size && offset !== 0 ? prefix + '/'+parentKeys+'/'+id+'/'+key+'?offset='+ ( prev < 0 ? 0 : prev ) + '&limit='+limit : null,
+                next:  size && next < size  ? prefix + '/'+parentKeys+'/'+id+'/'+key+'?offset='+ next + '&limit='+limit : null,
+                items: collection
+              };
+          after(req, res, json);
+        });
+      }
+    );
   },
 
 
   putAsUpdate: function(key, model){
     var that = this,
         keys = pluralize(key),
-        prefix = this.prefix;
+        prefix = this.prefix,
+        after = this.after;
 
     /**
      * Update instance as full replacement with specified ID
@@ -791,30 +774,33 @@ Creator.prototype = {
       group: key,
       name: 'Update instance'
     });
-    this.router.put(prefix + '/' + keys + '/:id', this.auth(key, model), function(req, res){
-      var params = that.params( model, req );
+    this.router.put(
+      prefix + '/' + keys + '/:id',
+      this.before,
+      function(req, res){
+        var params = that.params( model, req );
 
-      async.waterfall([
-        function(callback){
-          var now = moment().format();
+        async.waterfall([
+          function(callback){
+            var now = moment().format();
 
-          that.models[key].findOneAndUpdate({
-            id: req.params.id
-          }, _.assign(params, {
-                updatedAt: now
-          }), function(err, instance){
-            callback(err);
-          });
-        }
-      ], function done(err, instance){
-        if(err) {
-          resutils.error(res, err);
-          return;
-        }
-
-        res.status(200).send(null);
-      });
-    });
+            that.models[key].findOneAndUpdate({
+              id: req.params.id
+            }, _.assign(params, {
+                  updatedAt: now
+            }), function(err, instance){
+              callback(err);
+            });
+          }
+        ], function done(err, instance){
+          if(err) {
+            resutils.error(res, err);
+            return;
+          }
+          after(req, res, json);
+        });
+      }
+    );
   },
 
   validatePermission: function(model, params){
@@ -836,7 +822,8 @@ Creator.prototype = {
   postAsUpdate: function(key, model){
     var that = this,
         keys = pluralize(key),
-        prefix = this.prefix;
+        prefix = this.prefix,
+        after = this.after;
 
     /**
      * Update instance as partial replacement with specified ID
@@ -847,54 +834,58 @@ Creator.prototype = {
       group : key,
       name: 'Update instance'
     });
-    this.router.post(prefix + '/' + keys + '/:id', this.auth(key, model), function(req, res){
-      var params = that.params( model, req ),
-          results = [
-            that.validatePermission( model, params ),
-            validate(model, params, true)
-          ],
-          isValid = true;
+    this.router.post(
+      prefix + '/' + keys + '/:id',
+      this.before,
+      function(req, res){
+        var params = that.params( model, req ),
+            results = [
+              that.validatePermission( model, params ),
+              validate(model, params, true)
+            ],
+            isValid = true;
 
-      results.map(function(result){
-        if( isValid && !result.ok ) {
-          res.status(400).json( result );
-          isValid = false;
-        }
-      });
-
-      if (! isValid ){
-        return;
-      }
-
-      async.waterfall(
-        // Confirm parent, instance data existance
-        that.validateRelatedDataExistance(req, model).concat([
-          function(callback){
-            var now = moment().format();
-
-            that.models[key].findOneAndUpdate({
-              id: req.params.id
-            }, _.assign(params, {
-                  updatedAt: now
-            }), function(err, instance){
-              callback(err);
-            });
+        results.map(function(result){
+          if( isValid && !result.ok ) {
+            res.status(400).json( result );
+            isValid = false;
           }
-        ]).concat(that.getProcessUpdateParent(req, model, that.models[key])), function done(err, instance){
-        if(err) {
-          resutils.error(res, err);
+        });
+
+        if (! isValid ){
           return;
         }
 
-        res.status(200).send(null);
-      });
-    });
+        async.waterfall(
+          // Confirm parent, instance data existance
+          that.validateRelatedDataExistance(req, model).concat([
+            function(callback){
+              var now = moment().format();
+
+              that.models[key].findOneAndUpdate({
+                id: req.params.id
+              }, _.assign(params, {
+                    updatedAt: now
+              }), function(err, instance){
+                callback(err);
+              });
+            }
+          ]).concat(that.getProcessUpdateParent(req, model, that.models[key])), function done(err, instance){
+          if(err) {
+            resutils.error(res, err);
+            return;
+          }
+          after(req, res, null);
+        });
+      }
+    );
   },
 
   deleteCollection: function(key, model){
     var that = this,
         keys = pluralize(key),
-        prefix = this.prefix;
+        prefix = this.prefix,
+        after = this.after;
 
     /**
      * Delete all collection
@@ -907,37 +898,41 @@ Creator.prototype = {
       name: 'Delete collection',
       collection: true
     });
-    this.router.delete(prefix + '/'+keys, this.auth(key, model), function(req, res){
-      async.waterfall([
-        function(callback){
-          var cond = that.cond(model, req);
+    this.router.delete(
+      prefix + '/'+keys,
+      this.before,
+      function(req, res){
+        async.waterfall([
+          function(callback){
+            var cond = that.cond(model, req);
 
-          that.models[key].find(cond, function(err, collection){
-            async.map(collection, function(instance, callback){
-              instance.remove(function(err){
+            that.models[key].find(cond, function(err, collection){
+              async.map(collection, function(instance, callback){
+                instance.remove(function(err){
+                  callback(err);
+                });
+              }, function(err){
                 callback(err);
               });
-            }, function(err){
-              callback(err);
             });
-          });
-        }
-      ], function done(err){
+          }
+        ], function done(err){
 
-        if(err) {
-          resutils.error(res, err);
-          return;
-        }
-        res.status(200).send(null);
-      });
-    });
-
+          if(err) {
+            resutils.error(res, err);
+            return;
+          }
+          after(req, res, null);
+        });
+      }
+    );
   },
 
   deleteInstance: function(key, model){
     var that = this,
         keys = pluralize(key),
-        prefix = this.prefix;
+        prefix = this.prefix,
+        after = this.after;
 
     /**
      * Delete specified instance
@@ -949,25 +944,27 @@ Creator.prototype = {
       group: key,
       name: 'Delete instance'
     });
-    this.router.delete(prefix + '/'+keys+'/:id', this.auth(key, model), function(req, res){
-      async.waterfall([
-        function(callback){
-          that.models[key].findOneAndRemove({
-            id: req.params.id
-          }, function(err){
-            callback(err);
-          });
-        }
-      ], function done(err, instance){
-        if(err) {
-          resutils.error(res, err);
-          return;
-        }
-
-        res.status(200).send(null);
-      });
-
-    });
+    this.router.delete(
+      prefix + '/'+keys+'/:id',
+      this.before,
+      function(req, res){
+        async.waterfall([
+          function(callback){
+            that.models[key].findOneAndRemove({
+              id: req.params.id
+            }, function(err){
+              callback(err);
+            });
+          }
+        ], function done(err, instance){
+          if(err) {
+            resutils.error(res, err);
+            return;
+          }
+          after(req, res, null);
+        });
+      }
+    );
   },
 
   unroute: function(){
