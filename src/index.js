@@ -15,6 +15,8 @@ module.exports = {
         prefix = options.prefix,
         before = options.before,
         after = options.after,
+        client = options.client,
+        secret = options.secret,
         applyChildren = function(key, schema, model){
           _.each(model, function(attr, childKey){
             if(attr.type === 'children') {
@@ -28,7 +30,7 @@ module.exports = {
     } else {
       mongoose = options.mongo;
     }
-    creator = new Creator(mongoose, router, prefix, before, after);
+    creator = new Creator(mongoose, router, prefix, before, after, client, secret);
 
     for( key in schema ){
       model = schema[key];

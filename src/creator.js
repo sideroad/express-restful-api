@@ -12,7 +12,7 @@ var _ = require('lodash'),
     camelize = require('camelize'),
     unroute = require('unroute');
 
-var Creator = function(mongoose, router, prefix, before, after){
+var Creator = function(mongoose, router, prefix, before, after, client, secret){
   var that = this;
   this.mongoose = mongoose;
   this.router = router;
@@ -23,14 +23,28 @@ var Creator = function(mongoose, router, prefix, before, after){
   this.responseAttrs = {};
   this.docs = [];
   this.docOrder = [];
-  this.before = before ? function( req, res, next ){
-    before(req, res, next, that.models);
-  } : function( req, res, next ){
+  this.auth = client && secret ? function( req, res, next ) {
+    if (req.headers['x-chaus-secret'] === secret &&
+        req.headers['x-chaus-client'] === client) {
+      next();
+    } else {
+      resutils.error(res, {
+        code: 400,
+        message: 'x-chaus-secret and / or x-chaus-client header are invalid'
+      });
+      return;
+    }
+  } : function(req, res, next, key) {
+    next();
+  }
+  this.before = before ? function( req, res, next, key ){
+    before(req, res, next, key, that.models);
+  } : function( req, res, next, key ){
     next();
   };
-  this.after = after ? function(req, res, json){
-    after(req, res, json, that.models);
-  } : function(req, res, json) {
+  this.after = after ? function(req, res, json, key){
+    after(req, res, json, key, that.models);
+  } : function(req, res, json, key) {
     json ? res.json(json)
          : res.send(null).end();
   };
@@ -403,6 +417,7 @@ Creator.prototype = {
         keys = pluralize(key),
         fields = this.fields(key),
         prefix = this.prefix,
+        before = this.before,
         after = this.after;
 
     /**
@@ -440,7 +455,10 @@ Creator.prototype = {
 
     this.router.get(
       prefix + '/'+keys,
-      this.before,
+      this.auth,
+      function(req, res, next){
+        before(req, res, next, key);
+      },
       function(req, res, next){
         if ( req.headers['x-json-schema'] === 'true' ){
           res.status(200).json(that.getJsonSchema(key, model)).end();
@@ -504,7 +522,7 @@ Creator.prototype = {
                 next:  size && next < size  ? prefix + '/'+keys+'?offset=' + next + '&limit=' + limit : null,
                 items: collection
               };
-          after(req, res, json);
+          after(req, res, json, key);
         });
       }
     );
@@ -523,6 +541,7 @@ Creator.prototype = {
     var that = this,
         keys = pluralize(key),
         prefix = this.prefix,
+        before = this.before,
         after = this.after;
     /**
      * Create new instance data and return instance URI with 201 status code
@@ -537,7 +556,10 @@ Creator.prototype = {
     });
     this.router.post(
       prefix + '/'+keys,
-      this.before,
+      this.auth,
+      function(req, res, next){
+        before(req, res, next, key);
+      },
       function(req, res){
         var id,
             text = '',
@@ -615,7 +637,7 @@ Creator.prototype = {
           }
           res.location(prefix + '/'+keys+'/' + id );
           res.status(201);
-          after(req, res, null);
+          after(req, res, null, key);
         });
       }
     );
@@ -626,6 +648,7 @@ Creator.prototype = {
         keys = pluralize(key),
         fields = this.fields(key),
         prefix = this.prefix,
+        before = this.before,
         after = this.after;
 
     /**
@@ -641,7 +664,10 @@ Creator.prototype = {
     });
     this.router.get(
       prefix + '/'+keys + '/:id',
-      this.before,
+      this.auth,
+      function(req, res, next){
+        before(req, res, next, key);
+      },
       function(req, res){
         var id = req.params.id;
 
@@ -671,7 +697,7 @@ Creator.prototype = {
           }
 
           instance = that.href(model, keys, [instance])[0];
-          after(req, res, instance);
+          after(req, res, instance, key);
         });
       }
     );
@@ -683,6 +709,7 @@ Creator.prototype = {
         keys = pluralize(attr.relation),
         fields = this.fields(key),
         prefix = this.prefix,
+        before = this.before,
         after = this.after;
 
     /**
@@ -705,7 +732,10 @@ Creator.prototype = {
     });
     this.router.get(
       prefix + '/'+parentKeys+'/:id/'+key,
-      this.before,
+      this.auth,
+      function(req, res, next){
+        before(req, res, next, key);
+      },
       function(req, res){
         var id = req.params.id,
             offset = Number(req.query.offset || 0),
@@ -752,7 +782,7 @@ Creator.prototype = {
                 next:  size && next < size  ? prefix + '/'+parentKeys+'/'+id+'/'+key+'?offset='+ next + '&limit='+limit : null,
                 items: collection
               };
-          after(req, res, json);
+          after(req, res, json, key);
         });
       }
     );
@@ -763,6 +793,7 @@ Creator.prototype = {
     var that = this,
         keys = pluralize(key),
         prefix = this.prefix,
+        before = this.before,
         after = this.after;
 
     /**
@@ -776,7 +807,10 @@ Creator.prototype = {
     });
     this.router.put(
       prefix + '/' + keys + '/:id',
-      this.before,
+      this.auth,
+      function(req, res, next){
+        before(req, res, next, key);
+      },
       function(req, res){
         var params = that.params( model, req );
 
@@ -797,7 +831,7 @@ Creator.prototype = {
             resutils.error(res, err);
             return;
           }
-          after(req, res, json);
+          after(req, res, json, key);
         });
       }
     );
@@ -823,6 +857,7 @@ Creator.prototype = {
     var that = this,
         keys = pluralize(key),
         prefix = this.prefix,
+        before = this.before,
         after = this.after;
 
     /**
@@ -836,7 +871,10 @@ Creator.prototype = {
     });
     this.router.post(
       prefix + '/' + keys + '/:id',
-      this.before,
+      this.auth,
+      function(req, res, next){
+        before(req, res, next, key);
+      },
       function(req, res){
         var params = that.params( model, req ),
             results = [
@@ -875,7 +913,7 @@ Creator.prototype = {
             resutils.error(res, err);
             return;
           }
-          after(req, res, null);
+          after(req, res, null, key);
         });
       }
     );
@@ -885,6 +923,7 @@ Creator.prototype = {
     var that = this,
         keys = pluralize(key),
         prefix = this.prefix,
+        before = this.before,
         after = this.after;
 
     /**
@@ -900,7 +939,10 @@ Creator.prototype = {
     });
     this.router.delete(
       prefix + '/'+keys,
-      this.before,
+      this.auth,
+      function(req, res, next){
+        before(req, res, next, key);
+      },
       function(req, res){
         async.waterfall([
           function(callback){
@@ -922,7 +964,7 @@ Creator.prototype = {
             resutils.error(res, err);
             return;
           }
-          after(req, res, null);
+          after(req, res, null, key);
         });
       }
     );
@@ -932,6 +974,7 @@ Creator.prototype = {
     var that = this,
         keys = pluralize(key),
         prefix = this.prefix,
+        before = this.before,
         after = this.after;
 
     /**
@@ -946,7 +989,10 @@ Creator.prototype = {
     });
     this.router.delete(
       prefix + '/'+keys+'/:id',
-      this.before,
+      this.auth,
+      function(req, res, next){
+        before(req, res, next, key);
+      },
       function(req, res){
         async.waterfall([
           function(callback){
@@ -961,7 +1007,7 @@ Creator.prototype = {
             resutils.error(res, err);
             return;
           }
-          after(req, res, null);
+          after(req, res, null, key);
         });
       }
     );
