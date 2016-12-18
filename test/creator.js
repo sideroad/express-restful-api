@@ -161,6 +161,8 @@ describe('Creator', function () {
         .send(data)
         .expect(201)
         .end(function(err, res){
+          res.body.should.have.property('id');
+          res.body.should.have.property('href');
           callback(err);
         });
     }, function(err){

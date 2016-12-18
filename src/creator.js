@@ -635,9 +635,13 @@ Creator.prototype = {
             resutils.error(res, err);
             return;
           }
-          res.location(prefix + '/'+keys+'/' + id );
+          var href = prefix + '/'+keys+'/' + id;
+          res.location(href);
           res.status(201);
-          after(req, res, null, key);
+          after(req, res, {
+            id: id,
+            href: href
+          }, key);
         });
       }
     );
