@@ -257,7 +257,8 @@ describe('Creator', function () {
         age: 32
       },{
         name: 'roadside',
-        company: 'road'
+        company: 'road',
+        age: 30.0000005
       },{
         name: 'foobar',
         company: 'road'
@@ -672,7 +673,7 @@ describe('Creator', function () {
             res.body.items[0].company.should.have.property('id', 'side');
             res.body.items[1].should.have.property('id', 'roadside');
             res.body.items[1].should.have.property('name', 'roadside');
-            res.body.items[1].should.have.property('age', null);
+            res.body.items[1].should.have.property('age', 30.0000005);
             res.body.items[1].should.have.property('createdAt');
             res.body.items[1].should.have.property('updatedAt');
             res.body.items[1].company.should.have.property('href', '/api/companies/road');
@@ -689,7 +690,7 @@ describe('Creator', function () {
       },
       function(callback){
         request(app)
-          .get('/api/people?age=[1,31]')
+          .get('/api/people?age=[1,30]')
           .expect(200)
           .end(function(err, res){
             should.not.exist(err);
@@ -705,7 +706,7 @@ describe('Creator', function () {
       },
       function(callback){
         request(app)
-          .get('/api/people?age=[1,32]')
+          .get('/api/people?age=[31,32]')
           .expect(200)
           .end(function(err, res){
             should.not.exist(err);
@@ -723,6 +724,29 @@ describe('Creator', function () {
             res.body.items[0].should.have.property('updatedAt');
             res.body.items[0].company.should.have.property('href', '/api/companies/side');
             res.body.items[0].company.should.have.property('id', 'side');
+            callback();
+          });
+      },
+      function(callback){
+        request(app)
+          .get('/api/people?age=[30,31]')
+          .expect(200)
+          .end(function(err, res){
+            should.not.exist(err);
+            res.body.should.have.property('offset', 0);
+            res.body.should.have.property('limit', 25);
+            res.body.should.have.property('first', '/api/people?offset=0&limit=25');
+            res.body.should.have.property('last',  '/api/people?offset=0&limit=25');
+            res.body.should.have.property('next', null);
+            res.body.should.have.property('prev', null);
+            res.body.items.length.should.equal(1);
+            res.body.items[0].should.have.property('id', 'roadside');
+            res.body.items[0].should.have.property('name', 'roadside');
+            res.body.items[0].should.have.property('age', 30.0000005);
+            res.body.items[0].should.have.property('createdAt');
+            res.body.items[0].should.have.property('updatedAt');
+            res.body.items[0].company.should.have.property('href', '/api/companies/road');
+            res.body.items[0].company.should.have.property('id', 'road');
             callback();
           });
       },
@@ -795,7 +819,7 @@ describe('Creator', function () {
 
             res.body.items[1].should.have.property('id', 'roadside');
             res.body.items[1].should.have.property('name', 'roadside');
-            res.body.items[1].should.have.property('age', null);
+            res.body.items[1].should.have.property('age', 30.0000005);
             res.body.items[1].should.have.property('createdAt');
             res.body.items[1].should.have.property('updatedAt');
             res.body.items[1].company.should.have.property('href', '/api/companies/road');
