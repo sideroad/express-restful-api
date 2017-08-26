@@ -580,12 +580,16 @@ Creator.prototype = {
           return;
         }
 
-        id = uniqKeys.map(function(key){
-          var val = params[key];
-          return String( val != null ? val : '' ).replace(/[\s\.\/]+/g, '_').toLowerCase();
-        }).join('-');
-
-        if(!id){
+        if (uniqKeys.length === 1) {
+          var val = params[uniqKeys[0]];
+          id = String( val != null ? val : '' ).replace(/[\s\.\/]+/g, '_').toLowerCase();
+        } else if(uniqKeys.length) {
+          md5.update(uniqKeys.map(function(key){
+            var val = params[key];
+            return String( val != null ? val : '' ).replace(/[\s\.\/]+/g, '_').toLowerCase();
+          }).join('-'));
+          id = md5.digest('hex').substr(0,7);
+        } else {
           md5.update(new Date().getTime() + ':' + Math.random());
           id = md5.digest('hex').substr(0,7);
         }
