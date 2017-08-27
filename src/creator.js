@@ -583,6 +583,10 @@ Creator.prototype = {
         if (uniqKeys.length === 1) {
           var val = params[uniqKeys[0]];
           id = String( val != null ? val : '' ).replace(/[\s\.\/]+/g, '_').toLowerCase();
+          if (!/^[a-z_0-9-]+$/.test(id)) {
+            md5.update(id);
+            id = md5.digest('hex').substr(0,7);
+          }
         } else if(uniqKeys.length) {
           md5.update(uniqKeys.map(function(key){
             var val = params[key];
