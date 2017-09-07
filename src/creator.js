@@ -234,29 +234,33 @@ Creator.prototype = {
   },
 
   cond: function(model, req ){
-    var params = this.params( model, req ),
+    var params = this.params( Object.assign({id: {type: 'string'}}, model), req ),
         cond = {};
 
     _.each(params, function(val, key){
-      var type = model[key].type,
+      var type = (model[key] || {}).type,
           search = type === 'number' ||
                    type === 'date'   ?  'range' : 'wildcard';
 
       val = val && val.length ? val : '';
-      cond[key] = search === 'wildcard' ? new RegExp('^'+val.replace(/\[/g, '\\[')
-                                                            .replace(/\]/g, '\\]')
-                                                            .replace(/\./g, '\\.')
-                                                            .replace(/\*/g, '.*') + '$') :
-                  search === 'range' && /^\[.+\,.+\]$/.test(val) ? {
-                                                                     $gte: val.match(/^\[(.+)\,(.+)\]$/)[1],
-                                                                     $lte: val.match(/^\[(.+)\,(.+)\]$/)[2]
-                                                                   } : val;
+      cond[key] = search === 'wildcard' && /\*/.test(val) ?
+                    new RegExp('^'+val.replace(/\[/g, '\\[')
+                        .replace(/\]/g, '\\]')
+                        .replace(/\./g, '\\.')
+                        .replace(/\*/g, '.*') + '$') :
+                  search === 'range' && /^\[.+\,.+\]$/.test(val) ?
+                    {
+                       $gte: val.match(/^\[(.+)\,(.+)\]$/)[1],
+                       $lte: val.match(/^\[(.+)\,(.+)\]$/)[2]
+                    } :
+                  /\,/.test(val) ? {
+                    $in: val.split(',')
+                  } : val;
     });
 
     if(req.query.q) {
       cond.q = new RegExp( req.query.q );
     }
-
     return cond;
   },
 
