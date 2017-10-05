@@ -436,7 +436,6 @@ describe('Creator', function () {
               age: 32
             }
           ], ['company'], function(collection){
-            console.log(collection[0].company);
             collection[0].company.should.have.property('name', 'Side');
             collection[0].company.should.have.property('id', 'side');
             done();
