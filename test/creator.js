@@ -389,18 +389,60 @@ describe('Creator', function () {
     done();
   });
 
-  it('should create href', function(done){
-    var collection = creator.href(schema.company, 'companies', [
-      {
-        id: 'side',
-        name: 'Side',
-        president: 'sideroad'
-      }
-    ]);
+  describe('href control', function() {
+    it('should create href', function(done){
+      createCompany(function(){
+        createPerson(function(){
+          creator.makeRelation(schema.company, 'companies', [
+            {
+              id: 'side',
+              name: 'Side',
+              president: 'sideroad'
+            }
+          ], [], function(collection){
+            collection[0].president.should.have.property('href', '/api/people/sideroad');
+            collection[0].president.should.have.property('id', 'sideroad');
+            done();
+          });
+        });
+      });
+    });
 
-    collection[0].president.should.have.property('href', '/api/people/sideroad');
-    collection[0].president.should.have.property('id', 'sideroad');
-    done();
+    it('should expand instance', function(done){
+      createCompany(function(){
+        createPerson(function(){
+          creator.makeRelation(schema.company, 'companies', [
+            {
+              id: 'side',
+              name: 'Side',
+              president: 'sideroad'
+            }
+          ], ['president'], function(collection){
+            collection[0].president.should.have.property('name', 'sideroad');
+            collection[0].president.should.have.property('id', 'sideroad');
+            done();
+          });
+        });
+      });
+    });
+
+    it('should expand parent', function(done){
+      createCompany(function(){
+        createPerson(function(){
+          creator.makeRelation(schema.person, 'people', [
+            {
+              name: 'sideroad',
+              company: 'side',
+              age: 32
+            }
+          ], ['company'], function(collection){
+            collection[0].company.should.have.property('name', 'Side');
+            collection[0].company.should.have.property('id', 'side');
+            done();
+          });
+        });
+      });
+    });
   });
 
   describe('create delete collection routing', function() {

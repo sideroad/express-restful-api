@@ -270,53 +270,83 @@ Creator.prototype = {
     });
   },
 
-  href: function(model, collectionKey, collection){
-    var prefix = this.prefix;
+  makeRelation: function(model, collectionKey, collection, expands, callback){
+    var prefix = this.prefix,
+        that = this;
     collection = this.toObject(collection);
-    _.each(model, function(option, key){
+    async.map(Object.keys(model), function(key, callback) {
       var childrenCollectionKey,
-          parentCollectionKey,
-          instanceKey;
+          instanceKey,
+          option = model[key];
 
-      if( option.type === 'children' ){
-        collection = _.map(collection, function(instance){
-          if( instance.hasOwnProperty(key) ) {
-            instance[key] = {
-              href: prefix + '/'+collectionKey+'/'+instance.id+'/'+key
-            };
-          }
-          return instance;
-        });
+      switch (option.type) {
+        case 'children':
+          collection.forEach(function(instance){
+            if( instance.hasOwnProperty(key) ) {
+              instance[key] = {
+                href: prefix + '/'+collectionKey+'/'+instance.id+'/'+key
+              };
+            }
+          });
+          callback();
+          break;
+        case 'parent':
+          async.map(collection, function(instance, callback){
+            if( instance.hasOwnProperty(key) ) {
+              const instanceKey = option.relation.split('.')[0];
+              const parentCollectionKey = pluralize(instanceKey);
+              if (expands.includes(key)) {
+                that.models[instanceKey].findOne({
+                  id: instance[key]
+                }, function(err, res){
+                  instance[key] = res;
+                  callback();
+                });
+              } else {
+                instance[key] = {
+                  href: prefix + '/'+parentCollectionKey+'/'+instance[key],
+                  id: instance[key]
+                };
+                callback();
+              }
+            } else {
+              callback();
+            }
+          }, function() {
+            callback();
+          });
+          break;
+        case 'instance':
+          async.map(collection, function(instance, callback){
+            if( instance.hasOwnProperty(key) ) {
+              const instanceKey = option.relation;
+              if (expands.includes(key)) {
+                that.models[instanceKey].findOne({
+                  id: instance[key]
+                }, function(err, res){
+                  instance[key] = res;
+                  callback();
+                });
+              } else {
+                instance[key] = {
+                  href: instance[key] ? prefix + '/'+pluralize(instanceKey)+'/'+instance[key] : null,
+                  id: instance[key]
+                };
+                callback();
+              }
+            } else {
+              callback();
+            }
+          }, function() {
+            callback();
+          });
+          break;
+        default:
+          callback();
       }
-
-      if( option.type === 'parent' ){
-        parentCollectionKey = pluralize(option.relation.split('.')[0]);
-        collection = _.map(collection, function(instance){
-          if( instance.hasOwnProperty(key) ) {
-            instance[key] = {
-              href: prefix + '/'+parentCollectionKey+'/'+instance[key],
-              id: instance[key]
-            };
-          }
-          return instance;
-        });
-      }
-
-      if( option.type === 'instance' ){
-
-        instanceKey = option.relation;
-        collection = _.map(collection, function(instance){
-          if( instance.hasOwnProperty(key) ) {
-            instance[key] = {
-              href: instance[key] ? prefix + '/'+pluralize(instanceKey)+'/'+instance[key] : null,
-              id: instance[key]
-            };
-          }
-          return instance;
-        });
-      }
+    }, function(){
+      callback(collection);
     });
-    return collection;
   },
 
   validateRelatedDataExistance: function(req, schema){
@@ -514,19 +544,19 @@ Creator.prototype = {
             return;
           }
 
-          collection = that.href(model, keys, collection);
-
-          var json = {
-                offset: offset,
-                limit: limit,
-                size: size,
-                first: size                 ? prefix + '/'+keys+'?offset=0&limit=' + limit : null,
-                last:  size                 ? prefix + '/'+keys+'?offset=' + ( ( Math.ceil( size / limit ) - 1 ) * limit ) + '&limit=' + limit : null,
-                prev:  size && offset !== 0 ? prefix + '/'+keys+'?offset=' + ( prev < 0 ? 0 : prev ) + '&limit=' + limit : null,
-                next:  size && next < size  ? prefix + '/'+keys+'?offset=' + next + '&limit=' + limit : null,
-                items: collection
-              };
-          after(req, res, json, key);
+          that.makeRelation(model, keys, collection, (req.query.expands || '').split(','), function(collection){
+            var json = {
+                  offset: offset,
+                  limit: limit,
+                  size: size,
+                  first: size                 ? prefix + '/'+keys+'?offset=0&limit=' + limit : null,
+                  last:  size                 ? prefix + '/'+keys+'?offset=' + ( ( Math.ceil( size / limit ) - 1 ) * limit ) + '&limit=' + limit : null,
+                  prev:  size && offset !== 0 ? prefix + '/'+keys+'?offset=' + ( prev < 0 ? 0 : prev ) + '&limit=' + limit : null,
+                  next:  size && next < size  ? prefix + '/'+keys+'?offset=' + next + '&limit=' + limit : null,
+                  items: collection
+                };
+            after(req, res, json, key);
+          });
         });
       }
     );
@@ -712,8 +742,10 @@ Creator.prototype = {
             return;
           }
 
-          instance = that.href(model, keys, [instance])[0];
-          after(req, res, instance, key);
+          that.makeRelation(model, keys, [instance], (req.query.expands || '').split(','), function(collection){
+            const instance = collection[0];
+            after(req, res, instance, key);
+          });
         });
       }
     );
@@ -786,19 +818,19 @@ Creator.prototype = {
             return;
           }
 
-          collection = that.href(model, keys, collection);
-
-          var json = {
-                offset: offset,
-                limit: limit,
-                size: size,
-                first: size                 ? prefix + '/'+parentKeys+'/'+id+'/'+key+'?offset=0&limit='+limit : null,
-                last:  size                 ? prefix + '/'+parentKeys+'/'+id+'/'+key+'?offset='+ ( ( Math.ceil( size / limit ) - 1 ) * limit ) + '&limit='+limit : null,
-                prev:  size && offset !== 0 ? prefix + '/'+parentKeys+'/'+id+'/'+key+'?offset='+ ( prev < 0 ? 0 : prev ) + '&limit='+limit : null,
-                next:  size && next < size  ? prefix + '/'+parentKeys+'/'+id+'/'+key+'?offset='+ next + '&limit='+limit : null,
-                items: collection
-              };
-          after(req, res, json, key);
+          that.makeRelation(model, keys, collection, (req.query.expands || '').split(','), function(collection){
+            var json = {
+              offset: offset,
+              limit: limit,
+              size: size,
+              first: size                 ? prefix + '/'+parentKeys+'/'+id+'/'+key+'?offset=0&limit='+limit : null,
+              last:  size                 ? prefix + '/'+parentKeys+'/'+id+'/'+key+'?offset='+ ( ( Math.ceil( size / limit ) - 1 ) * limit ) + '&limit='+limit : null,
+              prev:  size && offset !== 0 ? prefix + '/'+parentKeys+'/'+id+'/'+key+'?offset='+ ( prev < 0 ? 0 : prev ) + '&limit='+limit : null,
+              next:  size && next < size  ? prefix + '/'+parentKeys+'/'+id+'/'+key+'?offset='+ next + '&limit='+limit : null,
+              items: collection
+            };
+            after(req, res, json, key);
+          })
         });
       }
     );
