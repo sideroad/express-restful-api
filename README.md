@@ -103,7 +103,7 @@ creator.router creates CRUD below
 - Delete instance ( DELETE )
 - Delete collection ( DELETE )
 
-#### Search
+#### Filtering collection fetch
 ##### type of `string`
 You can use wildcard to get collection.
 
@@ -112,17 +112,29 @@ You can use wildcard to get collection.
 ...name=*road
 ```
 
+You can use comma to get collection as OR condition
+```
+// Get collection which value equal sideroad OR roadside
+...name=sideroad,roadside
+```
+
 ##### type of `number` or `date`
-You can search by range.
+You can get collection filtered by range.
 
 ```
 // Get collection which created the instance between 1, Dec and 5, Dec
-...createdAt=[2015-12-01,2015-12-05]...
+...createdAt=[2015-12-01,2015-12-05]
 ```
 
 ```
 // Get collection which has value between 10 and 20
-...age=[10,20]...
+...age=[10,20]
+```
+
+You can use comma to get collection as OR condition
+```
+// Get collection which value equal sideroad OR roadside
+...age=10,20
 ```
 
 ### creator.doc
