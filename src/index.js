@@ -30,7 +30,7 @@ module.exports = {
     } else {
       mongoose = options.mongo;
     }
-    creator = new Creator(mongoose, router, prefix, before, after, client, secret);
+    creator = new Creator(mongoose, router, prefix, before, after, client, secret, schema);
 
     for( key in schema ){
       model = schema[key];

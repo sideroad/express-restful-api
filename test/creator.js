@@ -73,7 +73,7 @@ describe('Creator', function () {
     mongoose.models = {};
     mongoose.modelSchemas = {};
 
-    creator = new Creator(mongoose, router, prefix);
+    creator = new Creator(mongoose, router, prefix, null, null, null, null, schema);
     app.use(bodyParser.json());
     app.use(router);
 
@@ -436,6 +436,7 @@ describe('Creator', function () {
               age: 32
             }
           ], ['company'], function(collection){
+            console.log(collection[0].company);
             collection[0].company.should.have.property('name', 'Side');
             collection[0].company.should.have.property('id', 'side');
             done();

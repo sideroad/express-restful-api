@@ -12,13 +12,14 @@ var _ = require('lodash'),
     camelize = require('camelize'),
     unroute = require('unroute');
 
-var Creator = function(mongoose, router, prefix, before, after, client, secret){
+var Creator = function(mongoose, router, prefix, before, after, client, secret, schemas){
   var that = this;
   this.mongoose = mongoose;
   this.router = router;
   this.prefix = prefix || '';
   this.models = {};
-  this.schemas = {};
+  this.schemas = schemas;
+  this.mongooseSchemas = {};
   this.requestAttrs = {};
   this.responseAttrs = {};
   this.docs = [];
@@ -80,7 +81,7 @@ Creator.prototype = {
     var group = doc.group.substr(0,1).toUpperCase() + doc.group.substr(1),
         responseAttrs = this.responseAttrs,
         requestAttrs  = this.requestAttrs,
-        schemas = this.schemas,
+        mongooseSchemas = this.mongooseSchemas,
         prefix = this.prefix,
         apiName = camelize( group + doc.name.replace(/\s+/g, '_') ),
         getApiParam = function(){
@@ -131,7 +132,7 @@ Creator.prototype = {
                        '@apiSuccess {String} next',
                        '@apiSuccess {Object[]} items Array of '+group+' instance',
                      ].join('\n * ') :
-                     _.map(schemas[doc.group], function(schema, key){
+                     _.map(mongooseSchemas[doc.group], function(schema, key){
                        var attr = responseAttrs[doc.group][key] || {};
                        if ( doc.validate && ( key === 'id' ||
                                               key === 'createdAt' ||
@@ -200,13 +201,13 @@ Creator.prototype = {
 
     model = this.mongoose.model((this.prefix + key).replace(/\//g, '_'), schema);
     this.models[key]  = model;
-    this.schemas[key] = schemaType;
+    this.mongooseSchemas[key] = schemaType;
     this.responseAttrs[key]   = attr;
     this.requestAttrs[key] = _attr;
   },
 
   fields: function(key, params) {
-    return _.map( params || this.schemas[key], function(attr, name) {
+    return _.map( params || this.mongooseSchemas[key], function(attr, name) {
       return name;
     }).join(' ') + ' -_id';
   },
@@ -298,9 +299,11 @@ Creator.prototype = {
               if (expands.includes(key)) {
                 that.models[instanceKey].findOne({
                   id: instance[key]
-                }, function(err, res){
-                  instance[key] = res;
-                  callback();
+                }, that.fields(instanceKey), function(err, res){
+                  that.makeRelation(that.schemas[instanceKey], parentCollectionKey, [res], [], function(collection){
+                    instance[key] = collection[0];
+                    callback();
+                  });
                 });
               } else {
                 instance[key] = {
@@ -320,12 +323,15 @@ Creator.prototype = {
           async.map(collection, function(instance, callback){
             if( instance.hasOwnProperty(key) ) {
               const instanceKey = option.relation;
+              const parentCollectionKey = pluralize(instanceKey);
               if (expands.includes(key)) {
                 that.models[instanceKey].findOne({
                   id: instance[key]
-                }, function(err, res){
-                  instance[key] = res;
-                  callback();
+                }, that.fields(instanceKey), function(err, res){
+                  that.makeRelation(that.schemas[instanceKey], parentCollectionKey, [res], [], function(collection){
+                    instance[key] = collection[0];
+                    callback();
+                  });
                 });
               } else {
                 instance[key] = {
