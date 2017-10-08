@@ -1,3 +1,4 @@
 node_modules
 doc
+!doc/apicomment.js
 npm-debug.log
