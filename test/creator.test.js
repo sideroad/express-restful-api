@@ -388,10 +388,13 @@ describe('Creator', () => {
   });
 
   it('should return sort object for mongoose', (done) => {
-    creator.parseOrder('company:asc').should.deepEqual({
+    creator.parseOrder('company').should.deepEqual({
       company: 1,
     });
-    creator.parseOrder('company:asc,person:desc').should.deepEqual({
+    creator.parseOrder('+company').should.deepEqual({
+      company: 1,
+    });
+    creator.parseOrder('+company,-person').should.deepEqual({
       company: 1,
       person: -1,
     });
@@ -840,7 +843,7 @@ describe('Creator', () => {
       },
       (callback) => {
         request(app)
-          .get('/api/people?orderBy=age:asc')
+          .get('/api/people?orderBy=%2Bage')
           .expect(200)
           .end((err, res) => {
             should.not.exist(err);
@@ -1143,7 +1146,7 @@ describe('Creator', () => {
       },
       (callback) => {
         request(app)
-          .get('/api/companies/road/members?orderBy=age:desc')
+          .get('/api/companies/road/members?orderBy=-age')
           .expect(200)
           .end((err, res) => {
             should.not.exist(err);

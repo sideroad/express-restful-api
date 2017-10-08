@@ -118,7 +118,7 @@ Creator.prototype = {
         params.push('@apiParam {String} [expands] Expand specified `parent`, `instance` fields.');
         params.push('`children` field could not expanded.');
         params.push('@apiParam {String} [orderBy] Specify sort order of fetched collection.');
-        params.push('For example `orderBy=name:asc,age:desc`');
+        params.push('For example `orderBy=+name,-age`');
       }
 
       if (doc.params) {
@@ -226,8 +226,9 @@ Creator.prototype = {
       if (!set) {
         return;
       }
-      const [key, val] = set.split(':');
-      sort[key] = val === 'asc' ? 1 : -1;
+      const operand = set.match(/^(\+|-|)(.+)/);
+      const key = operand ? operand[2] : set;
+      sort[key] = operand && operand[1] === '-' ? -1 : 1;
     });
     return sort;
   },

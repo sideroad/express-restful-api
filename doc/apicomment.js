@@ -30,7 +30,7 @@
  * @apiParam {String} [expands] Expand specified `parent`, `instance` fields.
  * `children` field could not expanded.
  * @apiParam {String} [orderBy] Specify sort order of fetched collection.
- * For example `orderBy=name:asc,age:desc`
+ * For example `orderBy=+name,-age`
  * @apiSuccess {Number} offset
  * @apiSuccess {Number} limit
  * @apiSuccess {Number} size
@@ -85,7 +85,7 @@
  * @apiParam {String} [expands] Expand specified `parent`, `instance` fields.
  * `children` field could not expanded.
  * @apiParam {String} [orderBy] Specify sort order of fetched collection.
- * For example `orderBy=name:asc,age:desc`
+ * For example `orderBy=+name,-age`
  * @apiSuccess {Number} offset
  * @apiSuccess {Number} limit
  * @apiSuccess {Number} size
@@ -172,7 +172,7 @@
  * @apiParam {String} [expands] Expand specified `parent`, `instance` fields.
  * `children` field could not expanded.
  * @apiParam {String} [orderBy] Specify sort order of fetched collection.
- * For example `orderBy=name:asc,age:desc`
+ * For example `orderBy=+name,-age`
  * @apiSuccess {Number} offset
  * @apiSuccess {Number} limit
  * @apiSuccess {Number} size
@@ -258,7 +258,7 @@
  * @apiParam {String} [expands] Expand specified `parent`, `instance` fields.
  * `children` field could not expanded.
  * @apiParam {String} [orderBy] Specify sort order of fetched collection.
- * For example `orderBy=name:asc,age:desc`
+ * For example `orderBy=+name,-age`
  * @apiSuccess {Number} offset
  * @apiSuccess {Number} limit
  * @apiSuccess {Number} size
