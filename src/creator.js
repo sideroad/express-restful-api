@@ -117,6 +117,8 @@ Creator.prototype = {
           doc.collection) {
         params.push('@apiParam {String} [expands] Expand specified `parent`, `instance` fields.');
         params.push('`children` field could not expanded.');
+        params.push('@apiParam {String} [orderBy] Specify sort order of fetched collection.');
+        params.push('For example `orderBy=name:asc,age:desc`');
       }
 
       if (doc.params) {
