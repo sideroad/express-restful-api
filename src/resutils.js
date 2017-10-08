@@ -1,11 +1,13 @@
 module.exports = {
-  error: function(res, err){
+  error: (res, err) => {
     res
       .status(err.code || 500)
       .json(
-        err.err ? err.err : {
-        msg: err.message
-      })
+        err.err ? err.err
+        : {
+          msg: err.message,
+        },
+      )
       .end();
-  }
+  },
 };

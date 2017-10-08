@@ -1,0 +1,12 @@
+{
+  "extends": "airbnb",
+  "rules": {
+    "no-nested-ternary": 0,
+    "indent": ["error", 2, { "flatTernaryExpressions": true }],
+    "no-prototype-builtins": 0
+  },
+  "env": {
+    "node": true,
+    "mocha": true
+  }
+}

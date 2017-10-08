@@ -1,57 +1,56 @@
-var express = require('express'),
-    redis = require('redis'),
-    _ = require('lodash'),
-    Creator = require('./creator'),
-    mongoose = require('mongoose'),
-    creator,
-    client;
+import express from 'express';
+import _ from 'lodash';
+import mongoose from 'mongoose';
+import Creator from './creator';
 
 module.exports = {
-  router: function(options){
-    var key,
-        model,
-        router = express.Router(),
-        schema = options.schema,
-        prefix = options.prefix,
-        before = options.before,
-        after = options.after,
-        client = options.client,
-        secret = options.secret,
-        applyChildren = function(key, schema, model){
-          _.each(model, function(attr, childKey){
-            if(attr.type === 'children') {
-              creator.getChildren( key, attr, childKey, schema[attr.relation] );
-            }
-          });
-        };
+  router: function routerFn(options) {
+    const router = express.Router();
+    const schemas = options.schemas;
+    const prefix = options.prefix;
+    const before = options.before;
+    const after = options.after;
+    const client = options.client;
+    const secret = options.secret;
+    const applyChildren = (creator, key, schema, model) => {
+      _.each(model, (attr, childKey) => {
+        if (attr.type === 'children') {
+          creator.getChildren(key, attr, childKey, schema[attr.relation]);
+        }
+      });
+    };
 
-    if ( typeof options.mongo === 'string' ) {
-      mongoose.connect(options.mongo);
-    } else {
-      mongoose = options.mongo;
-    }
-    creator = new Creator(mongoose, router, prefix, before, after, client, secret, schema);
+    const creator = new Creator({
+      mongoose: typeof options.mongo === 'string' ? mongoose.connect(options.mongo) || mongoose : options.mongo,
+      router,
+      prefix,
+      before,
+      after,
+      client,
+      secret,
+      schemas,
+    });
 
-    for( key in schema ){
-      model = schema[key];
+    Object.keys(schemas).forEach((key) => {
+      const model = schemas[key];
       creator.model(key, model);
-      creator.getInstance( key, model );
-      creator.getCollection( key, model );
-      applyChildren(key, schema, model);
+      creator.getInstance(key, model);
+      creator.getCollection(key, model);
+      applyChildren(creator, key, schemas, model);
 
-      creator.postInstance( key, model );
+      creator.postInstance(key, model);
       creator.postAsUpdate(key, model);
 
       creator.deleteCollection(key, model);
       creator.deleteInstance(key, model);
-    }
+    });
     this.creator = creator;
     return router;
   },
-  doc: function(doc){
-    creator.createDoc(doc);
+  doc: function docFn(doc) {
+    this.creator.createDoc(doc);
   },
-  destroy: function(){
-    creator.unroute();
-  }
+  destroy: function destroyFn() {
+    this.creator.unroute();
+  },
 };

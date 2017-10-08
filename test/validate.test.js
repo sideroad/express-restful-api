@@ -1,18 +1,15 @@
-var assert = require('assert'),
-    should = require('should'),
-    validate = require('../src/validate');
+import validate from '../lib/validate';
 
-describe('validate', function () {
-
-  it('should return message when invalid data is exists', function (done) {
-    var results = {};
+describe('validate', () => {
+  it('should return message when invalid data is exists', (done) => {
+    let results = {};
 
     results = validate({
       number: {
-        pattern: '^\\d+$'
-      }
+        pattern: '^\\d+$',
+      },
     }, {
-      number: 'a'
+      number: 'a',
     });
 
     results.should.not.have.property('ok');
@@ -20,10 +17,10 @@ describe('validate', function () {
 
     results = validate({
       number: {
-        pattern: /^\d+$/
-      }
+        pattern: /^\d+$/,
+      },
     }, {
-      number: 'a'
+      number: 'a',
     });
 
     results.should.not.have.property('ok');
@@ -31,10 +28,10 @@ describe('validate', function () {
 
     results = validate({
       number: {
-        required: true
-      }
+        required: true,
+      },
     }, {
-      number: null
+      number: null,
     });
 
     results.should.not.have.property('ok');
@@ -43,16 +40,16 @@ describe('validate', function () {
   });
 
 
-  it('should return customized message when invalid data is exists', function (done) {
-    var results = {};
+  it('should return customized message when invalid data is exists', (done) => {
+    let results = {};
 
     results = validate({
       number: {
         pattern: '^\\d+$',
-        invalid: 'Only number allowed'
-      }
+        invalid: 'Only number allowed',
+      },
     }, {
-      number: 'a'
+      number: 'a',
     });
 
     results.should.not.have.property('ok');
@@ -61,10 +58,10 @@ describe('validate', function () {
     results = validate({
       number: {
         pattern: /^\d+$/,
-        invalid: 'Only number allowed'
-      }
+        invalid: 'Only number allowed',
+      },
     }, {
-      number: 'a'
+      number: 'a',
     });
 
     results.should.not.have.property('ok');
@@ -73,10 +70,10 @@ describe('validate', function () {
     results = validate({
       number: {
         required: true,
-        invalid: 'Number is required'
-      }
+        invalid: 'Number is required',
+      },
     }, {
-      number: null
+      number: null,
     });
 
     results.should.not.have.property('ok');
@@ -84,15 +81,15 @@ describe('validate', function () {
     done();
   });
 
-  it('should return ok if the data is valid', function (done) {
-    var results = {};
+  it('should return ok if the data is valid', (done) => {
+    let results = {};
 
     results = validate({
       number: {
-        pattern: '^\\d+$'
-      }
+        pattern: '^\\d+$',
+      },
     }, {
-      number: 1
+      number: 1,
     });
 
     results.should.have.property('ok', true);
@@ -100,10 +97,10 @@ describe('validate', function () {
 
     results = validate({
       number: {
-        required: true
-      }
+        required: true,
+      },
     }, {
-      number: 1
+      number: 1,
     });
 
     results.should.have.property('ok', true);

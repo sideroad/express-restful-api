@@ -1,450 +1,468 @@
-var _ = require('lodash'),
-    util = require('util'),
-    moment = require('moment'),
-    async = require('async'),
-    path = require('path'),
-    fs   = require('fs-extra'),
-    crypto = require('crypto'),
-    validate = require('./validate'),
-    resutils = require('./resutils'),
-    apidoc = require('apidoc'),
-    pluralize = require('pluralize'),
-    camelize = require('camelize'),
-    unroute = require('unroute');
+import _ from 'lodash';
+import moment from 'moment';
+import async from 'async';
+import path from 'path';
+import fs from 'fs-extra';
+import crypto from 'crypto';
+import apidoc from 'apidoc';
+import pluralize from 'pluralize';
+import camelize from 'camelize';
+import unroute from 'unroute';
+import validate from './validate';
+import resutils from './resutils';
 
-var Creator = function(mongoose, router, prefix, before, after, client, secret, schemas){
-  var that = this;
+const Creator = function constructor({
+  mongoose, router, prefix, before, after, client, secret, schemas,
+}) {
   this.mongoose = mongoose;
+  this.mongooseModels = {};
+  this.mongooseSchemas = {};
   this.router = router;
   this.prefix = prefix || '';
-  this.models = {};
   this.schemas = schemas;
-  this.mongooseSchemas = {};
   this.requestAttrs = {};
   this.responseAttrs = {};
   this.docs = [];
   this.docOrder = [];
-  this.auth = client && secret ? function( req, res, next ) {
+  this.auth = client && secret ? (req, res, next) => {
     if (req.headers['x-chaus-secret'] === secret &&
         req.headers['x-chaus-client'] === client) {
       next();
     } else {
       resutils.error(res, {
         code: 400,
-        message: 'x-chaus-secret and / or x-chaus-client header are invalid'
+        message: 'x-chaus-secret and / or x-chaus-client header are invalid',
       });
-      return;
     }
-  } : function(req, res, next, key) {
-    next();
-  }
-  this.before = before ? function( req, res, next, key ){
-    before(req, res, next, key, that.models);
-  } : function( req, res, next, key ){
+  } : (req, res, next) => {
     next();
   };
-  this.after = after ? function(req, res, json, key){
-    after(req, res, json, key, that.models);
-  } : function(req, res, json, key) {
-    json ? res.json(json)
-         : res.send(null).end();
+  this.before = before ? (req, res, next, key) => {
+    before(req, res, next, key, this.mongooseModels);
+  } : (req, res, next) => {
+    next();
+  };
+  this.after = after ? (req, res, json, key) => {
+    after(req, res, json, key, this.mongooseModels);
+  } : (req, res, json) => {
+    if (json) {
+      res.json(json);
+    } else {
+      res.send(null).end();
+    }
   };
 };
 
 Creator.prototype = {
+  createDoc: function createDocfn(_doc) {
+    const doc = _.assign({
+      order: this.docOrder,
+    }, _doc);
+    const source = path.join(doc.dest, 'apicomment.js');
 
-  createDoc: function(_doc){
-    var doc = _.assign({
-          order: this.docOrder
-        }, _doc),
-        source = path.join( doc.dest, 'apicomment.js' );
-
-    if(fs.existsSync(source)){
+    if (fs.existsSync(source)) {
       fs.unlinkSync(source);
     }
 
     fs.mkdirsSync(doc.dest);
-    fs.writeFileSync(path.join( doc.dest, 'apidoc.json'), JSON.stringify(doc));
+    fs.writeFileSync(path.join(doc.dest, 'apidoc.json'), JSON.stringify(doc));
     fs.writeFileSync(source, this.docs.join('\n'));
 
     apidoc.createDoc({
       src: doc.dest,
       dest: doc.dest,
-      config: doc.dest
+      config: doc.dest,
     });
 
     // apply patch for doc sample ajax
-    fs.copySync( path.join( __dirname, '../patch/send_sample_request.js' ), path.join(doc.dest, 'utils/send_sample_request.js'));
+    fs.copySync(path.join(__dirname, '../patch/send_sample_request.js'), path.join(doc.dest, 'utils/send_sample_request.js'));
   },
 
-  doc: function(doc){
-    var group = doc.group.substr(0,1).toUpperCase() + doc.group.substr(1),
-        responseAttrs = this.responseAttrs,
-        requestAttrs  = this.requestAttrs,
-        mongooseSchemas = this.mongooseSchemas,
-        prefix = this.prefix,
-        apiName = camelize( group + doc.name.replace(/\s+/g, '_') ),
-        getApiParam = function(){
-            var params = [];
+  doc: function docfn(doc) {
+    const group = doc.group.substr(0, 1).toUpperCase() + doc.group.substr(1);
+    const responseAttrs = this.responseAttrs;
+    const requestAttrs = this.requestAttrs;
+    const mongooseSchemas = this.mongooseSchemas;
+    const apiName = camelize(group + doc.name.replace(/\s+/g, '_'));
+    const getApiParam = () => {
+      let params = [];
 
-            if( doc.method === 'post' ||
-                doc.collection ||
-                doc.validate ){
-                params = params.concat(
-                  _.map(requestAttrs[doc.group], function(attr, key){
-                    return attr.type === 'children' ? '' :
-                           '@apiParam {'+
-                              (attr.type === 'number'  ? 'Number'  :
-                               attr.type === 'boolean' ? 'Boolean' : 'String')+
-                            '} ' +
-                            (doc.create && ( attr.required || attr.uniq ) ? key : '[' + key + ']') +
-                            (doc.create && attr.default                   ? '=' + attr.default : '' ) + ' ' +
-                            (attr.desc     ? attr.desc :
-                             attr.type === 'instance' ? attr.relation + ' id' : '');
-                  })
-                );
-            }
+      if (doc.method === 'post' ||
+          doc.collection ||
+          doc.validate) {
+        params = params.concat(
+          _.map(requestAttrs[doc.group], (attr, key) =>
+            (
+              attr.type === 'children' ? '' :
+              `@apiParam {${
+                attr.type === 'number' ? 'Number' :
+                attr.type === 'boolean' ? 'Boolean' : 'String'
+              }} ${[
+                (doc.create && (attr.required || attr.uniq) ? key : `[${key}]`),
+                (doc.create && attr.default ? `=${attr.default}` : ''),
+                (attr.desc ? attr.desc : attr.type === 'instance' ? `${attr.relation} id` : ''),
+              ].join(' ')}`
+            ),
+          ),
+        );
+      }
 
-            if( doc.method === 'get' &&
-                !doc.validate ) {
-              params.push('@apiParam {String} [fields] Pertial attribution will be responsed.');
-              params.push('                   Attributions should be separated with comma.');
-            }
+      if (doc.method === 'get' &&
+          !doc.validate) {
+        params.push('@apiParam {String} [fields] Pertial attribution will be responsed.');
+        params.push('                   Attributions should be separated with comma.');
+      }
 
-            if ( doc.params ) {
-              params = _.map(doc.params, function(value, key){
-                return '@apiParam {String} ' + key + ' ' + value;
-              });
-            }
-            return params.join('\n * ')
-        },
-        apiSuccess = doc.response ? _.map(doc.response, function(value, key){
-                       return '@apiSuccess {String} ' + key + ' ' + value;
-                     }) :
-                     doc.method !== 'get' ? '' :
-                     doc.collection ? [
-                       '@apiSuccess {Number} offset',
-                       '@apiSuccess {Number} limit',
-                       '@apiSuccess {Number} size',
-                       '@apiSuccess {String} first',
-                       '@apiSuccess {String} last',
-                       '@apiSuccess {String} prev',
-                       '@apiSuccess {String} next',
-                       '@apiSuccess {Object[]} items Array of '+group+' instance',
-                     ].join('\n * ') :
-                     _.map(mongooseSchemas[doc.group], function(schema, key){
-                       var attr = responseAttrs[doc.group][key] || {};
-                       if ( doc.validate && ( key === 'id' ||
-                                              key === 'createdAt' ||
-                                              key === 'updatedAt' ||
-                                              attr.type === 'children') ) {
-                         return '';
-                       }
-                       return '@apiSuccess {'+
-                                 (attr.type === 'number'   ? 'Number'  :
-                                  attr.type === 'boolean'  ? 'Boolean' :
-                                  attr.type === 'children' ? 'Object'  :
-                                  attr.type === 'instance' ? 'Object'  : 'String')+
-                               '} ' + key + ' ' +
-                                 (attr.desc                ? attr.desc :
-                                  attr.type === 'children' ? 'linking of ' + ( attr.relation ) :
-                                  attr.type === 'instance' ? 'linking of ' + ( attr.relation ) : '');
-                     }).join('\n * '),
-        apiHeader = !doc.headers ? ''
-                                 : _.map( doc.headers, function( value, header ){
-                                   return '@apiHeader {String} ' + header + ' ' + value;
-                                 });
+      if (doc.params) {
+        params = _.map(doc.params, (value, key) =>
+          `@apiParam {String} ${key} ${value}`,
+        );
+      }
+      return params.join('\n * ');
+    };
+    const apiSuccess = doc.response ?
+      _.map(doc.response, (value, key) =>
+        `@apiSuccess {String} ${key} ${value}`,
+      ) :
+      doc.method !== 'get' ? '' :
+      doc.collection ? [
+        '@apiSuccess {Number} offset',
+        '@apiSuccess {Number} limit',
+        '@apiSuccess {Number} size',
+        '@apiSuccess {String} first',
+        '@apiSuccess {String} last',
+        '@apiSuccess {String} prev',
+        '@apiSuccess {String} next',
+        `@apiSuccess {Object[]} items Array of ${group} instance`,
+      ].join('\n * ') :
+      _.map(mongooseSchemas[doc.group], (schema, key) => {
+        const attr = responseAttrs[doc.group][key] || {};
+        if (
+          doc.validate &&
+          (key === 'id' ||
+           key === 'createdAt' ||
+           key === 'updatedAt' ||
+           attr.type === 'children')
+        ) {
+          return '';
+        }
+        return `@apiSuccess {${
+          (attr.type === 'number' ? 'Number' :
+            attr.type === 'boolean' ? 'Boolean' :
+            attr.type === 'children' ? 'Object' :
+            attr.type === 'instance' ? 'Object' : 'String')
+        }} ${key} ${
+          (attr.desc ? attr.desc :
+            attr.type === 'children' ? `linking of ${attr.relation}` :
+            attr.type === 'instance' ? `linking of ${attr.relation}` : '')
+        }`;
+      }).join('\n * ');
+    const apiHeader = !doc.headers ? '' : _.map(doc.headers, (value, header) =>
+      `@apiHeader {String} ${header} ${value}`,
+    );
 
     this.docs.push(
-      '/**\n'+
-      ' * @api {'+doc.method+'} '+doc.url+' '+doc.name+'\n'+
-      ' * @apiName ' + apiName + '\n' +
-      ' * @apiGroup ' + group  + '\n' +
-      ' * ' + getApiParam()    + '\n' +
-      ' * ' + apiSuccess       + '\n' +
-      ' * ' + apiHeader        + '\n' +
-      ' */\n'
+      `
+/**
+ * @api {${doc.method}} ${doc.url} ${doc.name}
+ * @apiName ${apiName}
+ * @apiGroup ${group}
+ * ${getApiParam()}
+ * ${apiSuccess}
+ * ${apiHeader}
+ */`,
     );
     this.docOrder.push(apiName);
   },
 
-  model: function(key, _attr){
-    var schemaType = {},
-        model,
-        attr = _.assign({
-          id: {}
-        }, _attr, {
-          createdAt: {
-            type: 'date'
-          },
-          updatedAt: {
-            type: 'date'
-          }
-        });
+  model: function modelFn(key, _attrs) {
+    const schemaType = {};
+    const attrs = _.assign({
+      id: {},
+    }, _attrs, {
+      createdAt: {
+        type: 'date',
+      },
+      updatedAt: {
+        type: 'date',
+      },
+    });
 
-    _.each(attr, function(attr, name){
-      var type = attr.type === 'number'   ? Number  :
-                 attr.type === 'boolean'  ? Boolean :
-                 attr.type === 'date'     ? Date    :
-                 attr.type === 'children' ? Array   : String;
+    _.each(attrs, (attr, name) => {
+      const type = attr.type === 'number' ? Number :
+        attr.type === 'boolean' ? Boolean :
+        attr.type === 'date' ? Date :
+        attr.type === 'children' ? Array : String;
 
       schemaType[name] = {
-        type: type,
-        default: attr.default || null
+        type,
+        default: attr.default || null,
       };
     });
 
-    schema = new this.mongoose.Schema(_.assign({
-      q: String
+    const schema = new this.mongoose.Schema(_.assign({
+      q: String,
     }, schemaType), { minimize: false });
     schema.index({ id: 1 });
 
-    model = this.mongoose.model((this.prefix + key).replace(/\//g, '_'), schema);
-    this.models[key]  = model;
+    const model = this.mongoose.model((this.prefix + key).replace(/\//g, '_'), schema);
+    this.mongooseModels[key] = model;
     this.mongooseSchemas[key] = schemaType;
-    this.responseAttrs[key]   = attr;
-    this.requestAttrs[key] = _attr;
+    this.responseAttrs[key] = attrs;
+    this.requestAttrs[key] = _attrs;
   },
 
-  fields: function(key, params) {
-    return _.map( params || this.mongooseSchemas[key], function(attr, name) {
-      return name;
-    }).join(' ') + ' -_id';
+  fields: function fieldsFn(key, params) {
+    const fields = _.map(params || this.mongooseSchemas[key], (attr, name) =>
+      name,
+    ).join(' ');
+    return `${fields} -_id`;
   },
 
-  params: function(model, req){
-    var params = {};
-    _.map(model, function(option, key){
-      var value = req.body[key]   !== undefined ? req.body[key]   :
-                  req.params[key] !== undefined ? req.params[key] :
-                  req.query[key]  !== undefined &&
-                  req.query[key]  !== null &&
-                  req.query[key]  !== ''        ? req.query[key]  : undefined;
+  params: function paramsFn(model, req) {
+    const params = {};
+    _.map(model, (option, key) => {
+      let value = req.body[key] !== undefined ? req.body[key] :
+        req.params[key] !== undefined ? req.params[key] :
+        req.query[key] !== undefined &&
+        req.query[key] !== null &&
+        req.query[key] !== '' ? req.query[key] : undefined;
 
-      if(option.type === 'children') {
+      if (option.type === 'children') {
         value = value !== undefined ? value : [];
       }
 
-      if(_.isArray(value) ? value.length :
-         value !== undefined ) {
+      if (
+        _.isArray(value) ? value.length :
+        value !== undefined
+      ) {
         params[key] = value;
       }
-
     });
     return params;
   },
 
-  cond: function(model, req ){
-    var params = this.params( Object.assign({id: {type: 'string'}}, model), req ),
-        cond = {};
+  cond: function condFn(model, req) {
+    const params = this.params(Object.assign({ id: { type: 'string' } }, model), req);
+    const cond = {};
 
-    _.each(params, function(val, key){
-      var type = (model[key] || {}).type,
-          search = type === 'number' ||
-                   type === 'date'   ?  'range' : 'wildcard';
+    _.each(params, (_val, key) => {
+      const type = (model[key] || {}).type;
+      const search = type === 'number' || type === 'date' ? 'range' : 'wildcard';
 
-      val = val && val.length ? val : '';
+      const val = _val && _val.length ? _val : '';
       cond[key] = search === 'wildcard' && /\*/.test(val) ?
-                    new RegExp('^'+val.replace(/\[/g, '\\[')
-                        .replace(/\]/g, '\\]')
-                        .replace(/\./g, '\\.')
-                        .replace(/\*/g, '.*') + '$') :
-                  search === 'range' && /^\[.+\,.+\]$/.test(val) ?
-                    {
-                       $gte: val.match(/^\[(.+)\,(.+)\]$/)[1],
-                       $lte: val.match(/^\[(.+)\,(.+)\]$/)[2]
-                    } :
-                  /\,/.test(val) ? {
-                    $in: val.split(',')
-                  } : val;
+        new RegExp(`^${
+          val.replace(/\[/g, '\\[')
+            .replace(/\]/g, '\\]')
+            .replace(/\./g, '\\.')
+            .replace(/\*/g, '.*')
+        }$`) :
+        search === 'range' && /^\[.+,.+\]$/.test(val) ?
+          {
+            $gte: val.match(/^\[(.+),(.+)\]$/)[1],
+            $lte: val.match(/^\[(.+),(.+)\]$/)[2],
+          } :
+          /,/.test(val) ? {
+            $in: val.split(','),
+          } : val;
     });
 
-    if(req.query.q) {
-      cond.q = new RegExp( req.query.q );
+    if (req.query.q) {
+      cond.q = new RegExp(req.query.q);
     }
     return cond;
   },
 
-  toObject: function(collection){
-    return _.map(collection, function(instance){
-      return instance.toObject ? instance.toObject() : instance;
-    });
+  toObject: function toObjectFn(collection) {
+    return _.map(collection, instance =>
+      (instance.toObject ? instance.toObject() : instance),
+    );
   },
 
-  makeRelation: function(model, collectionKey, collection, expands, callback){
-    var prefix = this.prefix,
-        that = this;
-    collection = this.toObject(collection);
-    async.map(Object.keys(model), function(key, callback) {
-      var childrenCollectionKey,
-          instanceKey,
-          option = model[key];
+  makeRelation: function makeRelationFn(model, collectionKey, _collection, expands, callback) {
+    const prefix = this.prefix;
+    const collection = this.toObject(_collection);
+    async.map(Object.keys(model), (key, modelCallback) => {
+      const option = model[key];
 
       switch (option.type) {
-        case 'children':
-          collection.forEach(function(instance){
-            if( instance.hasOwnProperty(key) ) {
+      case 'children':
+        collection.forEach((instance) => {
+          if (instance.hasOwnProperty(key)) {
+            // eslint-disable-next-line no-param-reassign
+            instance[key] = {
+              href: `${prefix}/${collectionKey}/${instance.id}/${key}`,
+            };
+          }
+        });
+        modelCallback();
+        break;
+      case 'parent':
+        async.map(collection, (instance, collectionCallback) => {
+          if (instance.hasOwnProperty(key)) {
+            const instanceKey = option.relation.split('.')[0];
+            const parentCollectionKey = pluralize(instanceKey);
+            if (expands.includes(key)) {
+              this.mongooseModels[instanceKey].findOne({
+                id: instance[key],
+              }, this.fields(instanceKey), (err, res) => {
+                this.makeRelation(
+                  this.schemas[instanceKey],
+                  parentCollectionKey,
+                  [res],
+                  [],
+                  (parentCollection) => {
+                    // eslint-disable-next-line no-param-reassign
+                    instance[key] = parentCollection[0];
+                    collectionCallback();
+                  },
+                );
+              });
+            } else {
+              // eslint-disable-next-line no-param-reassign
               instance[key] = {
-                href: prefix + '/'+collectionKey+'/'+instance.id+'/'+key
+                href: `${prefix}/${parentCollectionKey}/${instance[key]}`,
+                id: instance[key],
               };
+              collectionCallback();
             }
-          });
-          callback();
-          break;
-        case 'parent':
-          async.map(collection, function(instance, callback){
-            if( instance.hasOwnProperty(key) ) {
-              const instanceKey = option.relation.split('.')[0];
-              const parentCollectionKey = pluralize(instanceKey);
-              if (expands.includes(key)) {
-                that.models[instanceKey].findOne({
-                  id: instance[key]
-                }, that.fields(instanceKey), function(err, res){
-                  that.makeRelation(that.schemas[instanceKey], parentCollectionKey, [res], [], function(collection){
-                    instance[key] = collection[0];
-                    callback();
-                  });
-                });
-              } else {
-                instance[key] = {
-                  href: prefix + '/'+parentCollectionKey+'/'+instance[key],
-                  id: instance[key]
-                };
-                callback();
-              }
+          } else {
+            collectionCallback();
+          }
+        }, () => {
+          modelCallback();
+        });
+        break;
+      case 'instance':
+        async.map(collection, (instance, collectionCallback) => {
+          if (instance.hasOwnProperty(key)) {
+            const instanceKey = option.relation;
+            const parentCollectionKey = pluralize(instanceKey);
+            if (expands.includes(key)) {
+              this.mongooseModels[instanceKey].findOne({
+                id: instance[key],
+              }, this.fields(instanceKey), (err, res) => {
+                this.makeRelation(
+                  this.schemas[instanceKey],
+                  parentCollectionKey,
+                  [res],
+                  [],
+                  (instanceCollection) => {
+                    // eslint-disable-next-line no-param-reassign
+                    instance[key] = instanceCollection[0];
+                    collectionCallback();
+                  },
+                );
+              });
             } else {
-              callback();
+              // eslint-disable-next-line no-param-reassign
+              instance[key] = {
+                href: instance[key] ? `${prefix}/${pluralize(instanceKey)}/${instance[key]}` : null,
+                id: instance[key],
+              };
+              collectionCallback();
             }
-          }, function() {
-            callback();
-          });
-          break;
-        case 'instance':
-          async.map(collection, function(instance, callback){
-            if( instance.hasOwnProperty(key) ) {
-              const instanceKey = option.relation;
-              const parentCollectionKey = pluralize(instanceKey);
-              if (expands.includes(key)) {
-                that.models[instanceKey].findOne({
-                  id: instance[key]
-                }, that.fields(instanceKey), function(err, res){
-                  that.makeRelation(that.schemas[instanceKey], parentCollectionKey, [res], [], function(collection){
-                    instance[key] = collection[0];
-                    callback();
-                  });
-                });
-              } else {
-                instance[key] = {
-                  href: instance[key] ? prefix + '/'+pluralize(instanceKey)+'/'+instance[key] : null,
-                  id: instance[key]
-                };
-                callback();
-              }
-            } else {
-              callback();
-            }
-          }, function() {
-            callback();
-          });
-          break;
-        default:
-          callback();
+          } else {
+            collectionCallback();
+          }
+        }, () => {
+          modelCallback();
+        });
+        break;
+      default:
+        modelCallback();
       }
-    }, function(){
+    }, () => {
       callback(collection);
     });
   },
 
-  validateRelatedDataExistance: function(req, schema){
-    var process = [],
-        that = this;
+  validateRelatedDataExistance: function validateRelatedDataExistanceFn(req, schema) {
+    const process = [];
+    _.each(schema, (attr, name) => {
+      let key;
 
-    _.each(schema, function(attr, name){
-      var id,
-          key;
-
-      if(attr.type === 'parent') {
+      if (attr.type === 'parent') {
         key = attr.relation.split('.')[0];
       }
-      if(attr.type === 'instance') {
+      if (attr.type === 'instance') {
         key = attr.relation;
       }
-      id = req.body[name];
-      if( key && id ) {
+      const id = req.body[name];
+      if (key && id) {
         process.push(
-          function(callback){
-            that.models[key].findOne({
-              id: id
-            }, function(err, instance){
-              if( !instance ) {
-                err = {
-                  err: {}
-                };
-                err.err[name] = 'Specified ID ( ' + id + ' ) does not exists in ' + key;
-                err.code = 400;
-              }
-              callback(err);
+          (callback) => {
+            this.mongooseModels[key].findOne({
+              id,
+            }, (err, instance) => {
+              callback(!instance ? {
+                err: {
+                  [name]: `Specified ID (${id}) does not exists in ${key}`,
+                },
+                code: 400,
+              } : err);
             });
-          }
+          },
         );
       }
     });
     return process;
   },
 
-  getProcessUpdateParent: function(req, schema, model){
-    var process = [];
-    _.each(schema, function(attr){
-      if(attr.type === 'parent') {
-        var key = attr.relation.split('.')[0],
-            child = attr.relation.split('.')[1];
+  getProcessUpdateParent: function getProcessUpdateParentFn(req, schema, model) {
+    const process = [];
+    _.each(schema, (attr) => {
+      if (attr.type === 'parent') {
+        const key = attr.relation.split('.')[0];
+        const child = attr.relation.split('.')[1];
 
-        process = process.concat([
-          function(callback){
+        process.push(
+          (callback) => {
             model.findOne({
-              id: req.body[key]
-            }, function(err, parent){
-                callback(err, parent);
+              id: req.body[key],
+            }, (err, parent) => {
+              callback(err, parent);
             });
-          },
-          function(parent, callback){
-
-            if(parent) {
-              var now = moment().format();
-              parent[child].push(id);
+          });
+        process.push(
+          (parent, callback) => {
+            if (parent) {
+              const now = moment().format();
+              parent[child].push(undefined); // TODO Confirm the logic is need or not.
+              // eslint-disable-next-line no-param-reassign
               parent.updatedAt = now;
-              parent.save(function(err){
+              parent.save((err) => {
                 callback(err);
               });
             } else {
               callback(null);
             }
-          }
-        ]);
+          },
+        );
       }
     });
     return process;
   },
 
-  getJsonSchema: function(key, model){
-    var json = {
+  getJsonSchema: function getJsonSchemaFn(_key, model) {
+    const json = {
       properties: {},
-      required: []
+      required: [],
     };
 
-    Object.keys(model).forEach(function(key){
-      var attr = model[key];
+    Object.keys(model).forEach((key) => {
+      const attr = model[key];
       json.properties[key] = {
-        type: attr.type === 'number' ? 'number' :
-              attr.type === 'boolean' ? 'boolean' : 'string'
+        type: attr.type === 'number' ? 'number' : attr.type === 'boolean' ? 'boolean' : 'string',
       };
-      if ( attr.type === 'date' ) {
+      if (attr.type === 'date') {
         json.properties[key].format = 'date';
       }
-      if ( attr.pattern ) {
+      if (attr.pattern) {
         json.properties[key].pattern = new RegExp(attr.pattern).toString();
       }
-      if ( attr.uniq || attr.required ) {
+      if (attr.uniq || attr.required) {
         json.required.push(key);
       }
     });
@@ -452,13 +470,12 @@ Creator.prototype = {
     return json;
   },
 
-  getCollection: function(key, model){
-    var that = this,
-        keys = pluralize(key),
-        fields = this.fields(key),
-        prefix = this.prefix,
-        before = this.before,
-        after = this.after;
+  getCollection: function getCollectionFn(key, model) {
+    const keys = pluralize(key);
+    const fields = this.fields(key);
+    const prefix = this.prefix;
+    const before = this.before;
+    const after = this.after;
 
     /**
      * Return collection
@@ -466,242 +483,246 @@ Creator.prototype = {
      */
     this.doc({
       method: 'get',
-      url : prefix + '/'+keys,
+      url: `${prefix}/${keys}`,
       group: key,
       name: 'Get collection',
-      collection: true
+      collection: true,
     });
     this.doc({
       method: 'get',
-      url : prefix + '/'+keys,
+      url: `${prefix}/${keys}`,
       group: key,
       params: {},
       response: {},
       name: 'Get JSON Schema',
       headers: {
-        'X-JSON-Schema': 'When the header has <code>true</code>, response JSON Schema instead'
-      }
+        'X-JSON-Schema': 'When the header has <code>true</code>, response JSON Schema instead',
+      },
     });
     this.doc({
       method: 'get',
-      url : prefix + '/'+keys,
+      url: `${prefix}/${keys}`,
       group: key,
       name: 'Validate parameters',
       validate: true,
       headers: {
-        'X-Validation': 'When the header has <code>true</code>, validate parameters'
-      }
+        'X-Validation': 'When the header has <code>true</code>, validate parameters',
+      },
     });
 
     this.router.get(
-      prefix + '/'+keys,
+      `${prefix}/${keys}`,
       this.auth,
-      function(req, res, next){
+      (req, res, next) => {
         before(req, res, next, key);
       },
-      function(req, res, next){
-        if ( req.headers['x-json-schema'] === 'true' ){
-          res.status(200).json(that.getJsonSchema(key, model)).end();
+      (req, res, next) => {
+        if (req.headers['x-json-schema'] === 'true') {
+          res.status(200).json(this.getJsonSchema(key, model)).end();
         } else {
           next();
         }
       },
-      function(req, res, next){
-        if ( req.headers['x-validation'] === 'true' ){
-          async.waterfall(that.validateRelatedDataExistance(req, model), function done(err){
-            var params = that.params( model, req ),
-                results = validate( model, params );
-            if ( err ) {
+      (req, res, next) => {
+        if (req.headers['x-validation'] === 'true') {
+          async.waterfall(this.validateRelatedDataExistance(req, model), (err) => {
+            const params = this.params(model, req);
+            const results = validate(model, params);
+            if (err) {
               resutils.error(res, err);
             } else {
-              res.status( results.ok ? 200 : 400).json( results ).end();
+              res.status(results.ok ? 200 : 400).json(results).end();
             }
           });
         } else {
           next();
         }
       },
-      function(req, res){
-        var offset = Number(req.query.offset || 0),
-            limit = Number(req.query.limit || 25),
-            cond = that.cond(model, req),
-            prev = offset - limit,
-            next = offset + limit;
+      (req, res) => {
+        const offset = Number(req.query.offset || 0);
+        const limit = Number(req.query.limit || 25);
+        const cond = this.cond(model, req);
+        const prev = offset - limit;
+        const next = offset + limit;
 
         async.waterfall([
-          function(callback){
-            var reqFields = req.query.fields;
+          (callback) => {
+            const reqFields = req.query.fields;
 
-            that.models[key].find(cond, reqFields ? reqFields.replace(/,/g, ' ') + ' -_id' : fields, {
+            this.mongooseModels[key].find(cond, reqFields ? `${reqFields.replace(/,/g, ' ')} -_id` : fields, {
               skip: offset,
-              limit: limit
-            }, function(err, collection){
+              limit,
+            }, (err, collection) => {
               callback(err, collection);
             });
           },
-          function(collection, callback){
-            that.models[key].count(cond, function(err, size){
+          (collection, callback) => {
+            this.mongooseModels[key].count(cond, (err, size) => {
               callback(err, collection, size);
             });
-          }
-        ], function done(err, collection, size){
-          if(err) {
+          },
+        ], (err, collection, size) => {
+          if (err) {
             resutils.error(res, err);
             return;
           }
 
-          that.makeRelation(model, keys, collection, (req.query.expands || '').split(','), function(collection){
-            var json = {
-                  offset: offset,
-                  limit: limit,
-                  size: size,
-                  first: size                 ? prefix + '/'+keys+'?offset=0&limit=' + limit : null,
-                  last:  size                 ? prefix + '/'+keys+'?offset=' + ( ( Math.ceil( size / limit ) - 1 ) * limit ) + '&limit=' + limit : null,
-                  prev:  size && offset !== 0 ? prefix + '/'+keys+'?offset=' + ( prev < 0 ? 0 : prev ) + '&limit=' + limit : null,
-                  next:  size && next < size  ? prefix + '/'+keys+'?offset=' + next + '&limit=' + limit : null,
-                  items: collection
-                };
-            after(req, res, json, key);
-          });
+          this.makeRelation(
+            model,
+            keys,
+            collection,
+            (req.query.expands || '').split(','),
+            (items) => {
+              after(req, res, {
+                offset,
+                limit,
+                size,
+                first: size ? `${prefix}/${keys}?offset=0&limit=${limit}` : null,
+                last: size ? `${prefix}/${keys}?offset=${((Math.ceil(size / limit) - 1) * limit)}&limit=${limit}` : null,
+                prev: size && offset !== 0 ? `${prefix}/${keys}?offset=${(prev < 0 ? 0 : prev)}&limit=${limit}` : null,
+                next: size && next < size ? `${prefix}/${keys}?offset=${next}&limit=${limit}` : null,
+                items,
+              }, key);
+            },
+          );
         });
-      }
+      },
     );
   },
 
-  getUniqKeys: function(model){
+  getUniqKeys: function getUniqKeysFn(model) {
     return _.chain(model)
-            .map(function(value, key){
-              return value.uniq ? key : undefined;
-            })
-            .compact()
-            .value();
+      .map((value, key) =>
+        (value.uniq ? key : undefined),
+      )
+      .compact()
+      .value();
   },
 
-  postInstance: function(key, model){
-    var that = this,
-        keys = pluralize(key),
-        prefix = this.prefix,
-        before = this.before,
-        after = this.after;
+  postInstance: function postInstanceFn(key, model) {
+    const keys = pluralize(key);
+    const prefix = this.prefix;
+    const before = this.before;
+    const after = this.after;
     /**
      * Create new instance data and return instance URI with 201 status code
      */
 
     this.doc({
       method: 'post',
-      url : prefix + '/'+keys,
+      url: `${prefix}/${keys}`,
       group: key,
       name: 'Create instance',
-      create: true
+      create: true,
     });
     this.router.post(
-      prefix + '/'+keys,
+      `${prefix}/${keys}`,
       this.auth,
-      function(req, res, next){
+      (req, res, next) => {
         before(req, res, next, key);
       },
-      function(req, res){
-        var id,
-            text = '',
-            uniqKeys = that.getUniqKeys(model),
-            texts = _.chain(model)
-                     .map(function(value, key){
-                       return value.text ? key : undefined;
-                     })
-                     .compact()
-                     .value(),
-            md5 = crypto.createHash('md5'),
-            params = that.params( model, req ),
-            process = [],
-            results = validate(model, params);
+      (req, res) => {
+        const uniqKeys = this.getUniqKeys(model);
+        const texts = _.chain(model)
+          .map((value, _key) =>
+            (value.text ? _key : undefined),
+          )
+          .compact()
+          .value();
+        const md5 = crypto.createHash('md5');
+        const params = this.params(model, req);
+        const results = validate(model, params);
 
-        if( !results.ok ) {
-          res.status(400).json( results );
+        let process = [];
+        let id;
+        let text = '';
+
+        if (!results.ok) {
+          res.status(400).json(results);
           return;
         }
 
         if (uniqKeys.length === 1) {
-          var val = params[uniqKeys[0]];
-          id = String( val != null ? val : '' ).replace(/[\s\.\/]+/g, '_').toLowerCase();
+          const val = params[uniqKeys[0]];
+          id = String(val != null ? val : '').replace(/[\s./]+/g, '_').toLowerCase();
           if (!/^[a-z_0-9-]+$/.test(id)) {
             md5.update(id);
-            id = md5.digest('hex').substr(0,7);
+            id = md5.digest('hex').substr(0, 7);
           }
-        } else if(uniqKeys.length) {
-          md5.update(uniqKeys.map(function(key){
-            var val = params[key];
-            return String( val != null ? val : '' ).replace(/[\s\.\/]+/g, '_').toLowerCase();
+        } else if (uniqKeys.length) {
+          md5.update(uniqKeys.map((uniqKey) => {
+            const val = params[uniqKey];
+            return String(val != null ? val : '').replace(/[\s./]+/g, '_').toLowerCase();
           }).join('-'));
-          id = md5.digest('hex').substr(0,7);
+          id = md5.digest('hex').substr(0, 7);
         } else {
-          md5.update(new Date().getTime() + ':' + Math.random());
-          id = md5.digest('hex').substr(0,7);
+          md5.update(`${new Date().getTime()}:${Math.random()}`);
+          id = md5.digest('hex').substr(0, 7);
         }
 
-        text = texts.map(function(key){
-          return params[key];
-        }).join(' ');
+        text = texts.map(textString =>
+          params[textString],
+        ).join(' ');
 
         // Confirm duplicated data existance
-        process.push(function(callback){
-          that.models[key].findOne({id: id}, function(err, instance){
+        process.push((callback) => {
+          this.mongooseModels[key].findOne({ id }, (err, instance) => {
             callback(instance ? {
               message: 'Duplicate id exists',
-              code: 409
+              code: 409,
             } : null);
           });
         });
 
         // Confirm parent, instance data existance
-        process = process.concat(that.validateRelatedDataExistance(req, model));
+        process = process.concat(this.validateRelatedDataExistance(req, model));
 
         // Push key onto parent object
-        process = process.concat(that.getProcessUpdateParent(req, model, that.models[key]));
+        process = process.concat(this.getProcessUpdateParent(req, model, this.mongooseModels[key]));
 
         process = process.concat([
-          function(callback){
-            var now = moment().format(),
-                Model = that.models[key],
-                instance = new Model(
-                  _.assign({
-                      id: id
-                  }, params, {
-                    q: text,
-                    createdAt: now,
-                    updatedAt: now
-                  })
-                );
+          (callback) => {
+            const now = moment().format();
+            const Model = this.mongooseModels[key];
+            const instance = new Model(
+              _.assign({
+                id,
+              }, params, {
+                q: text,
+                createdAt: now,
+                updatedAt: now,
+              }),
+            );
 
-            instance.save(function(err){
+            instance.save((err) => {
               callback(err);
             });
-          }
+          },
         ]);
 
-        async.waterfall(process, function done(err){
-          if(err) {
+        async.waterfall(process, (err) => {
+          if (err) {
             resutils.error(res, err);
             return;
           }
-          var href = prefix + '/'+keys+'/' + id;
+          const href = `${prefix}/${keys}/${id}`;
           res.location(href);
           res.status(201);
           after(req, res, {
-            id: id,
-            href: href
+            id,
+            href,
           }, key);
         });
-      }
+      },
     );
   },
 
-  getInstance: function(key, model){
-    var that = this,
-        keys = pluralize(key),
-        fields = this.fields(key),
-        prefix = this.prefix,
-        before = this.before,
-        after = this.after;
+  getInstance: function getInstanceFn(key, model) {
+    const keys = pluralize(key);
+    const fields = this.fields(key);
+    const prefix = this.prefix;
+    const before = this.before;
+    const after = this.after;
 
     /**
      * Get specified instance by ID
@@ -709,62 +730,62 @@ Creator.prototype = {
 
     this.doc({
       method: 'get',
-      url : prefix + '/'+keys+'/:id',
+      url: `${prefix}/${keys}/:id`,
       group: key,
       name: 'Get instance',
-      model: model
+      model,
     });
     this.router.get(
-      prefix + '/'+keys + '/:id',
+      `${prefix}/${keys}/:id`,
       this.auth,
-      function(req, res, next){
+      (req, res, next) => {
         before(req, res, next, key);
       },
-      function(req, res){
-        var id = req.params.id;
+      (req, res) => {
+        const id = req.params.id;
 
         async.waterfall([
-          function(callback){
-            var reqFields = req.query.fields;
+          (callback) => {
+            const reqFields = req.query.fields;
 
-            that.models[key].findOne({
-              id: id
-            }, reqFields ? reqFields.replace(/,/g, ' ') + ' -_id' : fields, function( err, instance ){
-              if( !instance ) {
-                err = {
-                  err: {
-                    id: 'Specified ID (' + id + ') does not exists in ' + key
-                  },
-                  code: 404
-                };
-              }
-
-              callback(err, instance ? instance : {});
+            this.mongooseModels[key].findOne({
+              id,
+            }, reqFields ? `${reqFields.replace(/,/g, ' ')} -_id` : fields, (err, instance) => {
+              callback(!instance ? {
+                err: {
+                  id: `Specified ID (${id}) does not exists in ${key}`,
+                },
+                code: 404,
+              } : err, instance || {});
             });
-          }
-        ], function done(err, instance){
-          if(err) {
+          },
+        ], (err, instance) => {
+          if (err) {
             resutils.error(res, err);
             return;
           }
 
-          that.makeRelation(model, keys, [instance], (req.query.expands || '').split(','), function(collection){
-            const instance = collection[0];
-            after(req, res, instance, key);
-          });
+          this.makeRelation(
+            model,
+            keys,
+            [instance],
+            (req.query.expands || '').split(','),
+            (instanceCollection) => {
+              after(req, res, instanceCollection[0], key);
+            },
+          );
         });
-      }
+      },
     );
   },
 
-  getChildren: function(parentKey, attr, key, model){
-    var that = this,
-        parentKeys = pluralize(parentKey),
-        keys = pluralize(attr.relation),
-        fields = this.fields(key),
-        prefix = this.prefix,
-        before = this.before,
-        after = this.after;
+  getChildren: function getChildrenFn(parentKey, attr, key, model) {
+    const parentKeys = pluralize(parentKey);
+    const keys = pluralize(attr.relation);
+    const fields = this.fields(key);
+    const prefix = this.prefix;
+    const before = this.before;
+    const after = this.after;
 
     /**
      * /groups/uxd/members
@@ -779,126 +800,122 @@ Creator.prototype = {
      */
     this.doc({
       method: 'get',
-      url : prefix + '/'+parentKeys+'/:id/'+key,
+      url: `${prefix}/${parentKeys}/:id/${key}`,
       group: parentKey,
-      name: 'Get '+key+' collection',
-      collection: true
+      name: `Get ${key} collection`,
+      collection: true,
     });
     this.router.get(
-      prefix + '/'+parentKeys+'/:id/'+key,
+      `${prefix}/${parentKeys}/:id/${key}`,
       this.auth,
-      function(req, res, next){
+      (req, res, next) => {
         before(req, res, next, key);
       },
-      function(req, res){
-        var id = req.params.id,
-            offset = Number(req.query.offset || 0),
-            limit = Number(req.query.limit || 25),
-            prev = offset - limit,
-            next = offset + limit,
-            cond = that.cond(model, req);
+      (req, res) => {
+        const id = req.params.id;
+        const offset = Number(req.query.offset || 0);
+        const limit = Number(req.query.limit || 25);
+        const prev = offset - limit;
+        const next = offset + limit;
+        const cond = this.cond(model, req);
 
         delete cond.id;
         cond[parentKey] = id;
 
         async.waterfall([
-          function(callback){
-            var reqFields = req.query.fields;
+          (callback) => {
+            const reqFields = req.query.fields;
 
-            that.models[attr.relation].find(cond, reqFields ? reqFields.replace(/,/g, ' ') + ' -_id' : fields, {
+            this.mongooseModels[attr.relation].find(cond, reqFields ? `${reqFields.replace(/,/g, ' ')} -_id` : fields, {
               skip: offset,
-              limit: limit
-            }, function(err, collection){
+              limit,
+            }, (err, collection) => {
               callback(err, collection);
             });
           },
-          function(collection, callback){
-
-            that.models[attr.relation].count(cond, function(err, size){
+          (collection, callback) => {
+            this.mongooseModels[attr.relation].count(cond, (err, size) => {
               callback(err, collection, size);
             });
-          }
-        ], function done(err, collection, size){
-          if(err) {
+          },
+        ], (err, collection, size) => {
+          if (err) {
             resutils.error(res, err);
             return;
           }
 
-          that.makeRelation(model, keys, collection, (req.query.expands || '').split(','), function(collection){
-            var json = {
-              offset: offset,
-              limit: limit,
-              size: size,
-              first: size                 ? prefix + '/'+parentKeys+'/'+id+'/'+key+'?offset=0&limit='+limit : null,
-              last:  size                 ? prefix + '/'+parentKeys+'/'+id+'/'+key+'?offset='+ ( ( Math.ceil( size / limit ) - 1 ) * limit ) + '&limit='+limit : null,
-              prev:  size && offset !== 0 ? prefix + '/'+parentKeys+'/'+id+'/'+key+'?offset='+ ( prev < 0 ? 0 : prev ) + '&limit='+limit : null,
-              next:  size && next < size  ? prefix + '/'+parentKeys+'/'+id+'/'+key+'?offset='+ next + '&limit='+limit : null,
-              items: collection
-            };
-            after(req, res, json, key);
-          })
+          this.makeRelation(model, keys, collection, (req.query.expands || '').split(','), (items) => {
+            after(req, res, {
+              offset,
+              limit,
+              size,
+              first: size ? `${prefix}/${parentKeys}/${id}/${key}?offset=0&limit=${limit}` : null,
+              last: size ? `${prefix}/${parentKeys}/${id}/${key}?offset=${((Math.ceil(size / limit) - 1) * limit)}&limit=${limit}` : null,
+              prev: size && offset !== 0 ? `${prefix}/${parentKeys}/${id}/${key}?offset=${(prev < 0 ? 0 : prev)}&limit=${limit}` : null,
+              next: size && next < size ? `${prefix}/${parentKeys}/${id}/${key}?offset=${next}&limit=${limit}` : null,
+              items,
+            }, key);
+          });
         });
-      }
+      },
     );
   },
 
-
-  putAsUpdate: function(key, model){
-    var that = this,
-        keys = pluralize(key),
-        prefix = this.prefix,
-        before = this.before,
-        after = this.after;
+  putAsUpdate: function putAsUpdateFn(key, model) {
+    const keys = pluralize(key);
+    const prefix = this.prefix;
+    const before = this.before;
+    const after = this.after;
 
     /**
      * Update instance as full replacement with specified ID
      */
     this.doc({
       method: 'put',
-      url : prefix + '/'+keys+'/:id',
+      url: `${prefix}/${keys}/:id`,
       group: key,
-      name: 'Update instance'
+      name: 'Update instance',
     });
     this.router.put(
-      prefix + '/' + keys + '/:id',
+      `${prefix}/${keys}/:id`,
       this.auth,
-      function(req, res, next){
+      (req, res, next) => {
         before(req, res, next, key);
       },
-      function(req, res){
-        var params = that.params( model, req );
+      (req, res) => {
+        const params = this.params(model, req);
 
         async.waterfall([
-          function(callback){
-            var now = moment().format();
+          (callback) => {
+            const now = moment().format();
 
-            that.models[key].findOneAndUpdate({
-              id: req.params.id
+            this.mongooseModels[key].findOneAndUpdate({
+              id: req.params.id,
             }, _.assign(params, {
-                  updatedAt: now
-            }), function(err, instance){
+              updatedAt: now,
+            }), (err) => {
               callback(err);
             });
-          }
-        ], function done(err, instance){
-          if(err) {
+          },
+        ], (err) => {
+          if (err) {
             resutils.error(res, err);
             return;
           }
-          after(req, res, json, key);
+          after(req, res, {}, key);
         });
-      }
+      },
     );
   },
 
-  validatePermission: function(model, params){
-    var uniqKeys = this.getUniqKeys(model),
-        result = {
-          ok: true
-        };
+  validatePermission: function validatePermissionFn(model, params) {
+    const uniqKeys = this.getUniqKeys(model);
+    const result = {
+      ok: true,
+    };
 
-    uniqKeys.map(function(key){
-      if( params[key] !== undefined ) {
+    uniqKeys.forEach((key) => {
+      if (params[key] !== undefined) {
         delete result.ok;
         result[key] = 'uniq key could not be changed';
       }
@@ -907,78 +924,77 @@ Creator.prototype = {
     return result;
   },
 
-  postAsUpdate: function(key, model){
-    var that = this,
-        keys = pluralize(key),
-        prefix = this.prefix,
-        before = this.before,
-        after = this.after;
+  postAsUpdate: function postAsUpdateFn(key, model) {
+    const keys = pluralize(key);
+    const prefix = this.prefix;
+    const before = this.before;
+    const after = this.after;
 
     /**
      * Update instance as partial replacement with specified ID
      */
     this.doc({
       method: 'post',
-      url : prefix + '/'+keys+'/:id',
-      group : key,
-      name: 'Update instance'
+      url: `${prefix}/${keys}/:id`,
+      group: key,
+      name: 'Update instance',
     });
     this.router.post(
-      prefix + '/' + keys + '/:id',
+      `${prefix}/${keys}/:id`,
       this.auth,
-      function(req, res, next){
+      (req, res, next) => {
         before(req, res, next, key);
       },
-      function(req, res){
-        var params = that.params( model, req ),
-            results = [
-              that.validatePermission( model, params ),
-              validate(model, params, true)
-            ],
-            isValid = true;
+      (req, res) => {
+        const params = this.params(model, req);
+        const results = [
+          this.validatePermission(model, params),
+          validate(model, params, true),
+        ];
+        let isValid = true;
 
-        results.map(function(result){
-          if( isValid && !result.ok ) {
-            res.status(400).json( result );
+        results.forEach((result) => {
+          if (isValid && !result.ok) {
+            res.status(400).json(result);
             isValid = false;
           }
         });
 
-        if (! isValid ){
+        if (!isValid) {
           return;
         }
 
         async.waterfall(
           // Confirm parent, instance data existance
-          that.validateRelatedDataExistance(req, model).concat([
-            function(callback){
-              var now = moment().format();
+          this.validateRelatedDataExistance(req, model).concat([
+            (callback) => {
+              const now = moment().format();
 
-              that.models[key].findOneAndUpdate({
-                id: req.params.id
+              this.mongooseModels[key].findOneAndUpdate({
+                id: req.params.id,
               }, _.assign(params, {
-                    updatedAt: now
-              }), function(err, instance){
+                updatedAt: now,
+              }), (err) => {
                 callback(err);
               });
+            },
+          ]).concat(this.getProcessUpdateParent(req, model, this.mongooseModels[key])), (err) => {
+            if (err) {
+              resutils.error(res, err);
+              return;
             }
-          ]).concat(that.getProcessUpdateParent(req, model, that.models[key])), function done(err, instance){
-          if(err) {
-            resutils.error(res, err);
-            return;
-          }
-          after(req, res, null, key);
-        });
-      }
+            after(req, res, null, key);
+          },
+        );
+      },
     );
   },
 
-  deleteCollection: function(key, model){
-    var that = this,
-        keys = pluralize(key),
-        prefix = this.prefix,
-        before = this.before,
-        after = this.after;
+  deleteCollection: function deleteCollectionFn(key, model) {
+    const keys = pluralize(key);
+    const prefix = this.prefix;
+    const before = this.before;
+    const after = this.after;
 
     /**
      * Delete all collection
@@ -986,50 +1002,48 @@ Creator.prototype = {
      */
     this.doc({
       method: 'delete',
-      url : prefix + '/'+keys,
+      url: `${prefix}/${keys}`,
       group: key,
       name: 'Delete collection',
-      collection: true
+      collection: true,
     });
     this.router.delete(
-      prefix + '/'+keys,
+      `${prefix}/${keys}`,
       this.auth,
-      function(req, res, next){
+      (req, res, next) => {
         before(req, res, next, key);
       },
-      function(req, res){
+      (req, res) => {
         async.waterfall([
-          function(callback){
-            var cond = that.cond(model, req);
+          (callback) => {
+            const cond = this.cond(model, req);
 
-            that.models[key].find(cond, function(err, collection){
-              async.map(collection, function(instance, callback){
-                instance.remove(function(err){
-                  callback(err);
+            this.mongooseModels[key].find(cond, (findErr, collection) => {
+              async.map(collection, (instance, modelCallback) => {
+                instance.remove((err) => {
+                  modelCallback(err);
                 });
-              }, function(err){
+              }, (err) => {
                 callback(err);
               });
             });
-          }
-        ], function done(err){
-
-          if(err) {
+          },
+        ], (err) => {
+          if (err) {
             resutils.error(res, err);
             return;
           }
           after(req, res, null, key);
         });
-      }
+      },
     );
   },
 
-  deleteInstance: function(key, model){
-    var that = this,
-        keys = pluralize(key),
-        prefix = this.prefix,
-        before = this.before,
-        after = this.after;
+  deleteInstance: function deleteInstanceFn(key) {
+    const keys = pluralize(key);
+    const prefix = this.prefix;
+    const before = this.before;
+    const after = this.after;
 
     /**
      * Delete specified instance
@@ -1037,46 +1051,46 @@ Creator.prototype = {
      */
     this.doc({
       method: 'delete',
-      url : prefix + '/'+keys+'/:id',
+      url: `${prefix}/${keys}/:id`,
       group: key,
-      name: 'Delete instance'
+      name: 'Delete instance',
     });
     this.router.delete(
-      prefix + '/'+keys+'/:id',
+      `${prefix}/${keys}/:id`,
       this.auth,
-      function(req, res, next){
+      (req, res, next) => {
         before(req, res, next, key);
       },
-      function(req, res){
+      (req, res) => {
         async.waterfall([
-          function(callback){
-            that.models[key].findOneAndRemove({
-              id: req.params.id
-            }, function(err){
+          (callback) => {
+            this.mongooseModels[key].findOneAndRemove({
+              id: req.params.id,
+            }, (err) => {
               callback(err);
             });
-          }
-        ], function done(err, instance){
-          if(err) {
+          },
+        ], (err) => {
+          if (err) {
             resutils.error(res, err);
             return;
           }
           after(req, res, null, key);
         });
-      }
+      },
     );
   },
 
-  unroute: function(){
-    var router = this.router;
-    var paths = router.stack.map(function(layer){
-      return layer.route.path;
-    });
+  unroute: function unrouteFn() {
+    const router = this.router;
+    const paths = router.stack.map(layer =>
+      layer.route.path,
+    );
 
-    _.uniq(paths).map(function(path){
-      unroute.remove(router, path);
+    _.uniq(paths).forEach((routePath) => {
+      unroute.remove(router, routePath);
     });
-  }
+  },
 
 };
 

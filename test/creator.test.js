@@ -1,342 +1,339 @@
-var assert = require('assert'),
-    should = require('should'),
-    express = require('express'),
-    router = express.Router(),
-    redis = require('redis'),
-    _ = require('lodash'),
-    fs = require('fs'),
-    Creator = require('../src/creator'),
-    request = require('supertest'),
-    bodyParser = require('body-parser'),
-    async = require('async'),
-    app = express(),
-    prefix = '/api',
-    mongoose = require('mongoose'),
-    schema = {
-      company: {
-        name: {
-          uniq: true,
-          pattern: /^[a-zA-Z 0-9]+$/,
-          invalid: "Only alphabets number spaces allowed"
-        },
-        members: {
-          type: 'children',
-          relation: 'person'
-        },
-        president: {
-          type: 'instance',
-          relation: 'person'
-        },
-        location: {
-          type: 'string',
-          pattern: /^[a-zA-Z]+$/,
-          invalid: "Only alphabets allowed"
-        },
-        isStockListing: {
-          type: 'boolean'
-        }
-      },
-      person: {
-        name: {
-          uniq: true,
-          text: true
-        },
-        company: {
-          type: 'parent',
-          relation: 'company.members',
-          text: true
-        },
-        age: {
-          type: 'number'
-        }
-      },
-      holiday: {
-        name: {
-          uniq: true,
-          text: true
-        },
-        start: {
-          type: 'date'
-        },
-        end: {
-          type: 'date'
-        }
-      }
+import should from 'should';
+import express from 'express';
+import fs from 'fs';
+import request from 'supertest';
+import bodyParser from 'body-parser';
+import async from 'async';
+import mongoose from 'mongoose';
+import path from 'path';
+import Creator from '../lib/creator';
+
+const router = express.Router();
+const app = express();
+const prefix = '/api';
+const schemas = {
+  company: {
+    name: {
+      uniq: true,
+      pattern: /^[a-zA-Z 0-9]+$/,
+      invalid: 'Only alphabets number spaces allowed',
     },
-    req,
-    client;
+    members: {
+      type: 'children',
+      relation: 'person',
+    },
+    president: {
+      type: 'instance',
+      relation: 'person',
+    },
+    location: {
+      type: 'string',
+      pattern: /^[a-zA-Z]+$/,
+      invalid: 'Only alphabets allowed',
+    },
+    isStockListing: {
+      type: 'boolean',
+    },
+  },
+  person: {
+    name: {
+      uniq: true,
+      text: true,
+    },
+    company: {
+      type: 'parent',
+      relation: 'company.members',
+      text: true,
+    },
+    age: {
+      type: 'number',
+    },
+  },
+  holiday: {
+    name: {
+      uniq: true,
+      text: true,
+    },
+    start: {
+      type: 'date',
+    },
+    end: {
+      type: 'date',
+    },
+  },
+};
 
-describe('Creator', function () {
+let creator;
 
-  before(function(){
+describe('Creator', () => {
+  before(() => {
     mongoose.connect(process.env.MONGO_URL);
     mongoose.models = {};
     mongoose.modelSchemas = {};
 
-    creator = new Creator(mongoose, router, prefix, null, null, null, null, schema);
+    creator = new Creator({ mongoose, router, prefix, schemas });
     app.use(bodyParser.json());
     app.use(router);
 
-    creator.model('company', schema.company);
-    creator.getInstance('company', schema.company);
-    creator.getCollection('company', schema.company);
-    creator.getChildren('company', { type: 'children', relation: 'person' }, 'members', schema.person);
-    creator.deleteInstance('company', schema.company);
-    creator.postAsUpdate('company', schema.company);
-    creator.postInstance('company', schema.company);
-    creator.deleteCollection('company', schema.company);
+    creator.model('company', schemas.company);
+    creator.getInstance('company', schemas.company);
+    creator.getCollection('company', schemas.company);
+    creator.getChildren('company', { type: 'children', relation: 'person' }, 'members', schemas.person);
+    creator.deleteInstance('company', schemas.company);
+    creator.postAsUpdate('company', schemas.company);
+    creator.postInstance('company', schemas.company);
+    creator.deleteCollection('company', schemas.company);
 
-    creator.model('person', schema.person);
-    creator.getInstance('person', schema.person);
-    creator.getCollection('person', schema.person);
-    creator.postInstance('person', schema.person);
-    creator.deleteCollection('person', schema.person);
+    creator.model('person', schemas.person);
+    creator.getInstance('person', schemas.person);
+    creator.getCollection('person', schemas.person);
+    creator.postInstance('person', schemas.person);
+    creator.deleteCollection('person', schemas.person);
 
-    creator.model('holiday', schema.holiday);
-    creator.getInstance('holiday', schema.holiday);
-    creator.getCollection('holiday', schema.holiday);
-    creator.postInstance('holiday', schema.holiday);
-    creator.deleteCollection('holiday', schema.holiday);
-
+    creator.model('holiday', schemas.holiday);
+    creator.getInstance('holiday', schemas.holiday);
+    creator.getCollection('holiday', schemas.holiday);
+    creator.postInstance('holiday', schemas.holiday);
+    creator.deleteCollection('holiday', schemas.holiday);
   });
 
-  after(function(){
+  after(() => {
     mongoose.disconnect();
   });
 
-  var cleanup = function(callback){
+  const cleanup = (callback) => {
     async.mapSeries([
       '/api/companies',
       '/api/people',
-      '/api/holidays'
-    ], function(uri, callback){
+      '/api/holidays',
+    ], (uri, mapCallback) => {
       request(app)
         .delete(uri)
         .expect(200)
-        .end(function(err, res){
-          callback(err);
+        .end((err) => {
+          mapCallback(err);
         });
-    }, function(err){
+    }, (err) => {
       should.not.exist(err);
       callback();
     });
   };
 
-  var cleanupWithParameter = function(callback){
+  const cleanupWithParameter = (callback) => {
     request(app)
       .delete('/api/companies')
-      .send({name: 'Side'})
+      .send({ name: 'Side' })
       .expect(200)
-      .end(function(err, res){
+      .end(() => {
         request(app)
           .delete('/api/people')
-          .send({name: '*side*'})
+          .send({ name: '*side*' })
           .expect(200)
-          .end(function(err, res){
-          callback();
-        });
+          .end((err) => {
+            callback(err);
+          });
       });
   };
 
-  var validCompanies = [
+  const validCompanies = [
     {
       name: 'Side',
-      isStockListing: true
+      isStockListing: true,
     },
     {
       name: 'Road',
-      isStockListing: false
-    }
+      isStockListing: false,
+    },
   ];
 
-  var invalidCompany = {
-    name: 'Invalid_Name'
+  const invalidCompany = {
+    name: 'Invalid_Name',
   };
 
-  var createCompany = function(callback){
-    async.mapSeries(validCompanies, function(data, callback){
+  const createCompany = (callback) => {
+    async.mapSeries(validCompanies, (data, mapCallback) => {
       request(app)
         .post('/api/companies')
         .type('json')
         .send(data)
         .expect(201)
-        .end(function(err, res){
+        .end((err, res) => {
           res.body.should.have.property('id');
           res.body.should.have.property('href');
-          callback(err);
+          mapCallback(err);
         });
-    }, function(err){
+    }, (err) => {
       should.not.exist(err);
       callback();
     });
   };
 
-  var createInvalidCompany = function(callback){
+  const createInvalidCompany = (callback) => {
     async.mapSeries([
       invalidCompany,
       {
-        name: ''
+        name: '',
       },
-      {}
-    ], function(data, callback){
+      {},
+    ], (data, mapCallback) => {
       request(app)
         .post('/api/companies')
         .type('json')
         .send(data)
         .expect(400)
-        .end(function(err, res){
+        .end((err, res) => {
           should.not.exist(err);
           res.body.should.have.property('name', 'Only alphabets number spaces allowed');
-          callback(err);
+          mapCallback(err);
         });
-    }, function(err){
-      should.not.exist(err);
-      callback();
-    });
-  }
-
-  var createCompanyWithIvalidPresident = function(callback){
-    async.mapSeries([
-      {
-        name: 'sideroad',
-        president: 'notexist'
-      }
-    ], function(data, callback){
-      request(app)
-        .post('/api/companies')
-        .type('json')
-        .send(data)
-        .expect(400)
-        .end(function(err, res){
-          should.not.exist(err);
-          res.body.should.have.property('president', 'Specified ID ( notexist ) does not exists in person');
-          callback(err);
-        });
-    }, function(err){
+    }, (err) => {
       should.not.exist(err);
       callback();
     });
   };
 
-  var validateCompany = function(callback){
-    async.mapSeries(validCompanies, function(data, callback){
+  const createCompanyWithIvalidPresident = (callback) => {
+    async.mapSeries([
+      {
+        name: 'sideroad',
+        president: 'notexist',
+      },
+    ], (data, mapCallback) => {
+      request(app)
+        .post('/api/companies')
+        .type('json')
+        .send(data)
+        .expect(400)
+        .end((err, res) => {
+          should.not.exist(err);
+          res.body.should.have.property('president', 'Specified ID (notexist) does not exists in person');
+          mapCallback(err);
+        });
+    }, (err) => {
+      should.not.exist(err);
+      callback();
+    });
+  };
+
+  const validateCompany = (callback) => {
+    async.mapSeries(validCompanies, (data, mapCallback) => {
       request(app)
         .get('/api/companies')
         .set('X-Validation', 'true')
         .send(data)
         .expect(200)
-        .end(function(err, res){
+        .end((err, res) => {
           should.not.exist(err);
           res.body.should.have.property('ok');
-          callback(err);
+          mapCallback(err);
         });
-    }, function(err){
+    }, (err) => {
       should.not.exist(err);
       callback();
     });
   };
 
-  var validateInvalidCompany = function(callback){
+  const validateInvalidCompany = (callback) => {
     request(app)
       .get('/api/companies')
       .set('X-Validation', 'true')
       .send(invalidCompany)
       .expect(400)
-      .end(function(err, res){
+      .end((err, res) => {
         should.not.exist(err);
-        res.body.should.have.property('name', 'Only alphabets number spaces allowed')
+        res.body.should.have.property('name', 'Only alphabets number spaces allowed');
         callback(err);
       });
-  }
+  };
 
-  var createPerson = function(callback){
+  const createPerson = (callback) => {
     async.mapSeries([
       {
         name: 'sideroad',
         company: 'side',
-        age: 32
-      },{
+        age: 32,
+      }, {
         name: 'roadside',
         company: 'road',
-        age: 30.0000005
-      },{
+        age: 30.0000005,
+      }, {
         name: 'foobar',
-        company: 'road'
-      }
-    ], function(data, callback){
+        company: 'road',
+      },
+    ], (data, mapCallback) => {
       request(app)
         .post('/api/people')
         .type('json')
         .send(data)
         .expect(201)
-        .end(function(err, res){
+        .end((err) => {
           should.not.exist(err);
-          callback(err);
+          mapCallback(err);
         });
-    }, function(err){
+    }, (err) => {
       should.not.exist(err);
       callback();
     });
   };
 
-  var createPersonWithInvalidCompany = function(callback){
+  const createPersonWithInvalidCompany = (callback) => {
     async.mapSeries([
       {
         name: 'sideroad',
         company: 'notexist',
-        age: 32
-      }
-    ], function(data, callback){
+        age: 32,
+      },
+    ], (data, mapCallback) => {
       request(app)
         .post('/api/people')
         .type('json')
         .send(data)
         .expect(400)
-        .end(function(err, res){
+        .end((err, res) => {
           should.not.exist(err);
-          res.body.should.have.property('company', 'Specified ID ( notexist ) does not exists in company');
-          callback(err);
+          res.body.should.have.property('company', 'Specified ID (notexist) does not exists in company');
+          mapCallback(err);
         });
-    }, function(err){
+    }, (err) => {
       should.not.exist(err);
       callback();
     });
   };
 
-  var duplicatedPerson = function(callback){
+  const duplicatedPerson = (callback) => {
     async.mapSeries([
       {
         name: 'duplicator',
         company: 'side',
         age: 32,
-        index: 1
-      },{
+        index: 1,
+      }, {
         name: 'duplicator',
         company: 'side',
         age: 32,
-        index: 2
-      }
-    ], function(data, callback){
+        index: 2,
+      },
+    ], (data, mapCallback) => {
       request(app)
         .post('/api/people')
         .type('json')
         .send(data)
-        .expect( data.index === 1 ? 201 : 409 )
-        .end(function(err, res){
+        .expect(data.index === 1 ? 201 : 409)
+        .end((err) => {
           should.not.exist(err);
-          callback( err );
+          mapCallback(err);
         });
-    }, function(err){
+    }, (err) => {
       should.not.exist(err);
       request(app)
         .get('/api/people')
         .expect(200)
-        .end(function(err, res){
+        .end((_err, res) => {
           should.not.exist(err);
           res.body.should.have.property('offset', 0);
           res.body.should.have.property('limit', 25);
           res.body.should.have.property('first', '/api/people?offset=0&limit=25');
-          res.body.should.have.property('last',  '/api/people?offset=0&limit=25');
+          res.body.should.have.property('last', '/api/people?offset=0&limit=25');
           res.body.should.have.property('next', null);
           res.body.should.have.property('prev', null);
           res.body.items.should.have.property('length', 1);
@@ -348,58 +345,58 @@ describe('Creator', function () {
     });
   };
 
-  var createPeriod = function(callback){
+  const createPeriod = (callback) => {
     async.mapSeries([
       {
         name: 'New Year',
         start: '2016-01-01',
-        end: '2016-01-03'
-      },{
+        end: '2016-01-03',
+      }, {
         name: 'Coming of Age Day',
         start: '2016-01-11',
-        end: '2016-01-11'
-      },{
+        end: '2016-01-11',
+      }, {
         name: 'Golden Week',
         start: '2016-04-29',
-        end: '2016-05-05'
-      }
-    ], function(data, callback){
+        end: '2016-05-05',
+      },
+    ], (data, mapCallback) => {
       request(app)
         .post('/api/holidays')
         .type('json')
         .send(data)
         .expect(201)
-        .end(function(err, res){
+        .end((err) => {
           should.not.exist(err);
-          callback(err);
+          mapCallback(err);
         });
-    }, function(err){
+    }, (err) => {
       should.not.exist(err);
       callback();
     });
   };
 
-  beforeEach(function(done){
+  beforeEach((done) => {
     cleanup(done);
   });
 
-  it('should return each fields', function(done){
+  it('should return each fields', (done) => {
     creator.fields('company').should.equal('id name members president location isStockListing createdAt updatedAt -_id');
     creator.fields('person').should.equal('id name company age createdAt updatedAt -_id');
     done();
   });
 
-  describe('href control', function() {
-    it('should create href', function(done){
-      createCompany(function(){
-        createPerson(function(){
-          creator.makeRelation(schema.company, 'companies', [
+  describe('href control', () => {
+    it('should create href', (done) => {
+      createCompany(() => {
+        createPerson(() => {
+          creator.makeRelation(schemas.company, 'companies', [
             {
               id: 'side',
               name: 'Side',
-              president: 'sideroad'
-            }
-          ], [], function(collection){
+              president: 'sideroad',
+            },
+          ], [], (collection) => {
             collection[0].president.should.have.property('href', '/api/people/sideroad');
             collection[0].president.should.have.property('id', 'sideroad');
             done();
@@ -408,16 +405,16 @@ describe('Creator', function () {
       });
     });
 
-    it('should expand instance', function(done){
-      createCompany(function(){
-        createPerson(function(){
-          creator.makeRelation(schema.company, 'companies', [
+    it('should expand instance', (done) => {
+      createCompany(() => {
+        createPerson(() => {
+          creator.makeRelation(schemas.company, 'companies', [
             {
               id: 'side',
               name: 'Side',
-              president: 'sideroad'
-            }
-          ], ['president'], function(collection){
+              president: 'sideroad',
+            },
+          ], ['president'], (collection) => {
             collection[0].president.should.have.property('name', 'sideroad');
             collection[0].president.should.have.property('id', 'sideroad');
             done();
@@ -426,16 +423,16 @@ describe('Creator', function () {
       });
     });
 
-    it('should expand parent', function(done){
-      createCompany(function(){
-        createPerson(function(){
-          creator.makeRelation(schema.person, 'people', [
+    it('should expand parent', (done) => {
+      createCompany(() => {
+        createPerson(() => {
+          creator.makeRelation(schemas.person, 'people', [
             {
               name: 'sideroad',
               company: 'side',
-              age: 32
-            }
-          ], ['company'], function(collection){
+              age: 32,
+            },
+          ], ['company'], (collection) => {
             collection[0].company.should.have.property('name', 'Side');
             collection[0].company.should.have.property('id', 'side');
             done();
@@ -445,121 +442,128 @@ describe('Creator', function () {
     });
   });
 
-  describe('create delete collection routing', function() {
-    it('should create delete collection', function(done) {
+  describe('create delete collection routing', () => {
+    it('should create delete collection', (done) => {
       cleanup(done);
     });
 
-    it('should delete collection by parameter', function(done) {
-      createCompany(function(){
-        createPerson(function(){
-          cleanupWithParameter(function(){
-            request(app)
-              .get('/api/companies')
-              .expect(200)
-              .end(function(err, res){
-                should.not.exist(err);
-                res.body.should.have.property('offset', 0);
-                res.body.should.have.property('limit', 25);
-                res.body.should.have.property('first', '/api/companies?offset=0&limit=25');
-                res.body.should.have.property('last',  '/api/companies?offset=0&limit=25');
-                res.body.should.have.property('next', null);
-                res.body.should.have.property('prev', null);
-                res.body.items.should.have.property('length', 1);
-                res.body.items[0].should.have.property('name', 'Road');
+    it('should delete collection by parameter', (done) => {
+      createCompany(() => {
+        createPerson(() => {
+          cleanupWithParameter(() => {
+            async.waterfall([
+              (callback) => {
+                request(app)
+                  .get('/api/companies')
+                  .expect(200)
+                  .end((err, res) => {
+                    should.not.exist(err);
+                    res.body.should.have.property('offset', 0);
+                    res.body.should.have.property('limit', 25);
+                    res.body.should.have.property('first', '/api/companies?offset=0&limit=25');
+                    res.body.should.have.property('last', '/api/companies?offset=0&limit=25');
+                    res.body.should.have.property('next', null);
+                    res.body.should.have.property('prev', null);
+                    res.body.items.should.have.property('length', 1);
+                    res.body.items[0].should.have.property('name', 'Road');
+                    callback();
+                  });
+              },
+              (callback) => {
                 request(app)
                   .get('/api/people')
                   .expect(200)
-                  .end(function(err, res){
+                  .end((err, res) => {
                     should.not.exist(err);
                     res.body.should.have.property('offset', 0);
                     res.body.should.have.property('limit', 25);
                     res.body.should.have.property('first', '/api/people?offset=0&limit=25');
-                    res.body.should.have.property('last',  '/api/people?offset=0&limit=25');
+                    res.body.should.have.property('last', '/api/people?offset=0&limit=25');
                     res.body.should.have.property('next', null);
                     res.body.should.have.property('prev', null);
                     res.body.items.should.have.property('length', 1);
                     res.body.items[0].should.have.property('name', 'foobar');
                     res.body.items[0].company.should.have.property('href', '/api/companies/road');
                     res.body.items[0].company.should.have.property('id', 'road');
-                    done();
+                    callback();
                   });
-              });
+              },
+            ], () => {
+              done();
+            });
           });
-        })
-      })
+        });
+      });
     });
-
   });
 
-  describe('create post instance routing', function(){
-    it('should create instance', function(done) {
-      createCompany(function(){
+  describe('create post instance routing', () => {
+    it('should create instance', (done) => {
+      createCompany(() => {
         createInvalidCompany(done);
       });
     });
 
-    it('should NOT create instance when instance data does not exists', function(done) {
-      createCompany(function(){
-        createPerson(function(){
+    it('should NOT create instance when instance data does not exists', (done) => {
+      createCompany(() => {
+        createPerson(() => {
           createCompanyWithIvalidPresident(done);
         });
       });
     });
 
-    it('should NOT create instance when parent data does not exists', function(done) {
-      createCompany(function(){
+    it('should NOT create instance when parent data does not exists', (done) => {
+      createCompany(() => {
         createPersonWithInvalidCompany(done);
       });
     });
 
-    it('should NOT create instance when duplicated data have post', function(done) {
-      createCompany(function(){
+    it('should NOT create instance when duplicated data have post', (done) => {
+      createCompany(() => {
         duplicatedPerson(done);
       });
     });
-
   });
 
-  describe('create validate routing', function(){
-    it('should validate', function(done) {
-      validateCompany(function(){
+  describe('create validate routing', () => {
+    it('should validate', (done) => {
+      validateCompany(() => {
         validateInvalidCompany(done);
       });
     });
   });
 
-  it('should create get collection routing', function(done) {
+  it('should create get collection routing', (done) => {
     async.waterfall([
-      function(callback){
+      (callback) => {
         request(app)
           .get('/api/companies')
           .expect(200)
-          .end(function(err, res){
+          .end((err, res) => {
             should.not.exist(err);
             res.body.should.have.property('offset', 0);
             res.body.should.have.property('limit', 25);
             res.body.should.have.property('first', null);
-            res.body.should.have.property('last',  null);
+            res.body.should.have.property('last', null);
             res.body.should.have.property('next', null);
             res.body.should.have.property('prev', null);
             res.body.items.should.have.property('length', 0);
             callback();
           });
       },
-      function(callback){
+      (callback) => {
         createCompany(callback);
       },
-      function(callback){
+      (callback) => {
         request(app)
           .get('/api/companies')
           .expect(200)
-          .end(function(err, res){
+          .end((err, res) => {
             should.not.exist(err);
             res.body.should.have.property('offset', 0);
             res.body.should.have.property('limit', 25);
             res.body.should.have.property('first', '/api/companies?offset=0&limit=25');
-            res.body.should.have.property('last',  '/api/companies?offset=0&limit=25');
+            res.body.should.have.property('last', '/api/companies?offset=0&limit=25');
             res.body.should.have.property('next', null);
             res.body.should.have.property('prev', null);
             res.body.items.length.should.equal(2);
@@ -580,16 +584,16 @@ describe('Creator', function () {
             callback();
           });
       },
-      function(callback){
+      (callback) => {
         request(app)
           .get('/api/companies?name=')
           .expect(200)
-          .end(function(err, res){
+          .end((err, res) => {
             should.not.exist(err);
             res.body.should.have.property('offset', 0);
             res.body.should.have.property('limit', 25);
             res.body.should.have.property('first', '/api/companies?offset=0&limit=25');
-            res.body.should.have.property('last',  '/api/companies?offset=0&limit=25');
+            res.body.should.have.property('last', '/api/companies?offset=0&limit=25');
             res.body.should.have.property('next', null);
             res.body.should.have.property('prev', null);
             res.body.items.length.should.equal(2);
@@ -608,16 +612,16 @@ describe('Creator', function () {
             callback();
           });
       },
-      function(callback){
+      (callback) => {
         request(app)
           .get('/api/companies?name=Side')
           .expect(200)
-          .end(function(err, res){
+          .end((err, res) => {
             should.not.exist(err);
             res.body.should.have.property('offset', 0);
             res.body.should.have.property('limit', 25);
             res.body.should.have.property('first', '/api/companies?offset=0&limit=25');
-            res.body.should.have.property('last',  '/api/companies?offset=0&limit=25');
+            res.body.should.have.property('last', '/api/companies?offset=0&limit=25');
             res.body.should.have.property('next', null);
             res.body.should.have.property('prev', null);
             res.body.items.length.should.equal(1);
@@ -630,16 +634,16 @@ describe('Creator', function () {
             callback();
           });
       },
-      function(callback){
+      (callback) => {
         request(app)
           .get('/api/companies?name=S*e')
           .expect(200)
-          .end(function(err, res){
+          .end((err, res) => {
             should.not.exist(err);
             res.body.should.have.property('offset', 0);
             res.body.should.have.property('limit', 25);
             res.body.should.have.property('first', '/api/companies?offset=0&limit=25');
-            res.body.should.have.property('last',  '/api/companies?offset=0&limit=25');
+            res.body.should.have.property('last', '/api/companies?offset=0&limit=25');
             res.body.should.have.property('next', null);
             res.body.should.have.property('prev', null);
             res.body.items.length.should.equal(1);
@@ -652,19 +656,19 @@ describe('Creator', function () {
             callback();
           });
       },
-      function(callback){
+      (callback) => {
         createPerson(callback);
       },
-      function(callback){
+      (callback) => {
         request(app)
           .get('/api/people')
           .expect(200)
-          .end(function(err, res){
+          .end((err, res) => {
             should.not.exist(err);
             res.body.should.have.property('offset', 0);
             res.body.should.have.property('limit', 25);
             res.body.should.have.property('first', '/api/people?offset=0&limit=25');
-            res.body.should.have.property('last',  '/api/people?offset=0&limit=25');
+            res.body.should.have.property('last', '/api/people?offset=0&limit=25');
             res.body.should.have.property('next', null);
             res.body.should.have.property('prev', null);
             res.body.items.length.should.equal(3);
@@ -692,32 +696,32 @@ describe('Creator', function () {
             callback();
           });
       },
-      function(callback){
+      (callback) => {
         request(app)
           .get('/api/people?age=[1,30]')
           .expect(200)
-          .end(function(err, res){
+          .end((err, res) => {
             should.not.exist(err);
             res.body.should.have.property('offset', 0);
             res.body.should.have.property('limit', 25);
             res.body.should.have.property('first', null);
-            res.body.should.have.property('last',  null);
+            res.body.should.have.property('last', null);
             res.body.should.have.property('next', null);
             res.body.should.have.property('prev', null);
             res.body.items.length.should.equal(0);
             callback();
           });
       },
-      function(callback){
+      (callback) => {
         request(app)
           .get('/api/people?age=[31,32]')
           .expect(200)
-          .end(function(err, res){
+          .end((err, res) => {
             should.not.exist(err);
             res.body.should.have.property('offset', 0);
             res.body.should.have.property('limit', 25);
             res.body.should.have.property('first', '/api/people?offset=0&limit=25');
-            res.body.should.have.property('last',  '/api/people?offset=0&limit=25');
+            res.body.should.have.property('last', '/api/people?offset=0&limit=25');
             res.body.should.have.property('next', null);
             res.body.should.have.property('prev', null);
             res.body.items.length.should.equal(1);
@@ -731,16 +735,16 @@ describe('Creator', function () {
             callback();
           });
       },
-      function(callback){
+      (callback) => {
         request(app)
           .get('/api/people?age=[30,31]')
           .expect(200)
-          .end(function(err, res){
+          .end((err, res) => {
             should.not.exist(err);
             res.body.should.have.property('offset', 0);
             res.body.should.have.property('limit', 25);
             res.body.should.have.property('first', '/api/people?offset=0&limit=25');
-            res.body.should.have.property('last',  '/api/people?offset=0&limit=25');
+            res.body.should.have.property('last', '/api/people?offset=0&limit=25');
             res.body.should.have.property('next', null);
             res.body.should.have.property('prev', null);
             res.body.items.length.should.equal(1);
@@ -754,16 +758,16 @@ describe('Creator', function () {
             callback();
           });
       },
-      function(callback){
+      (callback) => {
         request(app)
           .get('/api/people?name=sideroad,roadside')
           .expect(200)
-          .end(function(err, res){
+          .end((err, res) => {
             should.not.exist(err);
             res.body.should.have.property('offset', 0);
             res.body.should.have.property('limit', 25);
             res.body.should.have.property('first', '/api/people?offset=0&limit=25');
-            res.body.should.have.property('last',  '/api/people?offset=0&limit=25');
+            res.body.should.have.property('last', '/api/people?offset=0&limit=25');
             res.body.should.have.property('next', null);
             res.body.should.have.property('prev', null);
             res.body.items.length.should.equal(2);
@@ -777,16 +781,16 @@ describe('Creator', function () {
             callback();
           });
       },
-      function(callback){
+      (callback) => {
         request(app)
           .get('/api/people?id=sideroad,roadside')
           .expect(200)
-          .end(function(err, res){
+          .end((err, res) => {
             should.not.exist(err);
             res.body.should.have.property('offset', 0);
             res.body.should.have.property('limit', 25);
             res.body.should.have.property('first', '/api/people?offset=0&limit=25');
-            res.body.should.have.property('last',  '/api/people?offset=0&limit=25');
+            res.body.should.have.property('last', '/api/people?offset=0&limit=25');
             res.body.should.have.property('next', null);
             res.body.should.have.property('prev', null);
             res.body.items.length.should.equal(2);
@@ -800,16 +804,16 @@ describe('Creator', function () {
             callback();
           });
       },
-      function(callback){
+      (callback) => {
         request(app)
           .get('/api/people?fields=id,name')
           .expect(200)
-          .end(function(err, res){
+          .end((err, res) => {
             should.not.exist(err);
             res.body.should.have.property('offset', 0);
             res.body.should.have.property('limit', 25);
             res.body.should.have.property('first', '/api/people?offset=0&limit=25');
-            res.body.should.have.property('last',  '/api/people?offset=0&limit=25');
+            res.body.should.have.property('last', '/api/people?offset=0&limit=25');
             res.body.should.have.property('next', null);
             res.body.should.have.property('prev', null);
             res.body.items.length.should.equal(3);
@@ -822,16 +826,16 @@ describe('Creator', function () {
             callback();
           });
       },
-      function(callback){
+      (callback) => {
         request(app)
           .get('/api/people?q=foo')
           .expect(200)
-          .end(function(err, res){
+          .end((err, res) => {
             should.not.exist(err);
             res.body.should.have.property('offset', 0);
             res.body.should.have.property('limit', 25);
             res.body.should.have.property('first', '/api/people?offset=0&limit=25');
-            res.body.should.have.property('last',  '/api/people?offset=0&limit=25');
+            res.body.should.have.property('last', '/api/people?offset=0&limit=25');
             res.body.should.have.property('next', null);
             res.body.should.have.property('prev', null);
             res.body.items.length.should.equal(1);
@@ -845,16 +849,16 @@ describe('Creator', function () {
             callback();
           });
       },
-      function(callback){
+      (callback) => {
         request(app)
           .get('/api/people?q=road')
           .expect(200)
-          .end(function(err, res){
+          .end((err, res) => {
             should.not.exist(err);
             res.body.should.have.property('offset', 0);
             res.body.should.have.property('limit', 25);
             res.body.should.have.property('first', '/api/people?offset=0&limit=25');
-            res.body.should.have.property('last',  '/api/people?offset=0&limit=25');
+            res.body.should.have.property('last', '/api/people?offset=0&limit=25');
             res.body.should.have.property('next', null);
             res.body.should.have.property('prev', null);
             res.body.items.length.should.equal(3);
@@ -885,89 +889,89 @@ describe('Creator', function () {
             callback();
           });
       },
-      function(callback){
+      (callback) => {
         createPeriod(callback);
       },
-      function(callback){
+      (callback) => {
         request(app)
           .get('/api/holidays')
           .expect(200)
-          .end(function(err, res){
+          .end((err, res) => {
             should.not.exist(err);
             res.body.should.have.property('offset', 0);
             res.body.should.have.property('limit', 25);
             res.body.should.have.property('first', '/api/holidays?offset=0&limit=25');
-            res.body.should.have.property('last',  '/api/holidays?offset=0&limit=25');
+            res.body.should.have.property('last', '/api/holidays?offset=0&limit=25');
             res.body.should.have.property('next', null);
             res.body.should.have.property('prev', null);
             res.body.items.length.should.equal(3);
             callback();
           });
       },
-      function(callback){
+      (callback) => {
         request(app)
           .get('/api/holidays?start=[2016-01-01,2016-02-01]')
           .expect(200)
-          .end(function(err, res){
+          .end((err, res) => {
             should.not.exist(err);
             res.body.should.have.property('offset', 0);
             res.body.should.have.property('limit', 25);
             res.body.should.have.property('first', '/api/holidays?offset=0&limit=25');
-            res.body.should.have.property('last',  '/api/holidays?offset=0&limit=25');
+            res.body.should.have.property('last', '/api/holidays?offset=0&limit=25');
             res.body.should.have.property('next', null);
             res.body.should.have.property('prev', null);
             res.body.items.length.should.equal(2);
             callback();
           });
       },
-      function(callback){
+      (callback) => {
         request(app)
           .get('/api/holidays?start=[2016-01-01,2016-01-01]')
           .expect(200)
-          .end(function(err, res){
+          .end((err, res) => {
             should.not.exist(err);
             res.body.should.have.property('offset', 0);
             res.body.should.have.property('limit', 25);
             res.body.should.have.property('first', '/api/holidays?offset=0&limit=25');
-            res.body.should.have.property('last',  '/api/holidays?offset=0&limit=25');
+            res.body.should.have.property('last', '/api/holidays?offset=0&limit=25');
             res.body.should.have.property('next', null);
             res.body.should.have.property('prev', null);
             res.body.items.length.should.equal(1);
             callback();
           });
       },
-    ], function(err){
+    ], (err) => {
       done(err);
     });
   });
 
-  it('should create get collection routing', function(done) {
+  it('should create get collection routing', (done) => {
     async.waterfall([
-      function(callback){
+      (callback) => {
         request(app)
           .get('/api/companies')
           .expect(200)
-          .end(function(err, res){
+          .end((err, res) => {
             should.not.exist(err);
             res.body.should.have.property('offset', 0);
             res.body.should.have.property('limit', 25);
             res.body.should.have.property('first', null);
-            res.body.should.have.property('last',  null);
+            res.body.should.have.property('last', null);
             res.body.should.have.property('next', null);
             res.body.should.have.property('prev', null);
             res.body.items.should.have.property('length', 0);
             callback();
           });
       },
-      function(callback){
+      (callback) => {
         createCompany(callback);
       },
-      function(callback){
+      (callback) => {
         request(app)
           .get('/api/companies')
           .set('x-json-schema', 'true')
           .expect(200)
-          .end(function(err, res){
+          .end((err, res) => {
             should.not.exist(err);
             res.body.should.have.property('properties');
             res.body.properties.should.have.property('name');
@@ -979,32 +983,31 @@ describe('Creator', function () {
             callback();
           });
       },
-    ], function(err){
+    ], (err) => {
       done(err);
     });
   });
 
-  it('should create get instance routing', function(done) {
-
+  it('should create get instance routing', (done) => {
     async.waterfall([
-      function(callback){
+      (callback) => {
         request(app)
           .get('/api/companies/side')
           .expect(404)
-          .end(function(err, res){
+          .end((err, res) => {
             should.not.exist(err);
             res.body.should.have.property('id', 'Specified ID (side) does not exists in company');
             callback();
           });
       },
-      function(callback){
+      (callback) => {
         createCompany(callback);
       },
-      function(callback){
+      (callback) => {
         request(app)
           .get('/api/companies/side')
           .expect(200)
-          .end(function(err, res){
+          .end((err, res) => {
             should.not.exist(err);
             res.body.should.have.property('id', 'side');
             res.body.should.have.property('name', 'Side');
@@ -1017,11 +1020,11 @@ describe('Creator', function () {
             callback();
           });
       },
-      function(callback){
+      (callback) => {
         request(app)
           .get('/api/companies/side?fields=id,name')
           .expect(200)
-          .end(function(err, res){
+          .end((err, res) => {
             should.not.exist(err);
             res.body.should.have.property('id', 'side');
             res.body.should.have.property('name', 'Side');
@@ -1033,49 +1036,46 @@ describe('Creator', function () {
 
             callback();
           });
-      }
-    ], function(err){
+      },
+    ], (err) => {
       done(err);
     });
-
   });
 
-  it('should create get child collection routing', function(done) {
-
-
+  it('should create get child collection routing', (done) => {
     async.waterfall([
-      function(callback){
+      (callback) => {
         request(app)
           .get('/api/companies/side/members')
           .expect(200)
-          .end(function(err, res){
+          .end((err, res) => {
             should.not.exist(err);
             res.body.should.have.property('offset', 0);
             res.body.should.have.property('limit', 25);
             res.body.should.have.property('first', null);
-            res.body.should.have.property('last',  null);
+            res.body.should.have.property('last', null);
             res.body.should.have.property('next', null);
             res.body.should.have.property('prev', null);
             res.body.items.should.have.property('length', 0);
             callback();
           });
       },
-      function(callback){
+      (callback) => {
         createCompany(callback);
       },
-      function(callback){
+      (callback) => {
         createPerson(callback);
       },
-      function(callback){
+      (callback) => {
         request(app)
           .get('/api/companies/side/members')
           .expect(200)
-          .end(function(err, res){
+          .end((err, res) => {
             should.not.exist(err);
             res.body.should.have.property('offset', 0);
             res.body.should.have.property('limit', 25);
             res.body.should.have.property('first', '/api/companies/side/members?offset=0&limit=25');
-            res.body.should.have.property('last',  '/api/companies/side/members?offset=0&limit=25');
+            res.body.should.have.property('last', '/api/companies/side/members?offset=0&limit=25');
             res.body.should.have.property('next', null);
             res.body.should.have.property('prev', null);
             res.body.items.length.should.equal(1);
@@ -1088,16 +1088,16 @@ describe('Creator', function () {
             callback();
           });
       },
-      function(callback){
+      (callback) => {
         request(app)
           .get('/api/companies/side/members?fields=id,name')
           .expect(200)
-          .end(function(err, res){
+          .end((err, res) => {
             should.not.exist(err);
             res.body.should.have.property('offset', 0);
             res.body.should.have.property('limit', 25);
             res.body.should.have.property('first', '/api/companies/side/members?offset=0&limit=25');
-            res.body.should.have.property('last',  '/api/companies/side/members?offset=0&limit=25');
+            res.body.should.have.property('last', '/api/companies/side/members?offset=0&limit=25');
             res.body.should.have.property('next', null);
             res.body.should.have.property('prev', null);
             res.body.items.length.should.equal(1);
@@ -1108,54 +1108,51 @@ describe('Creator', function () {
             res.body.items[0].should.not.have.property('updatedAt');
             callback();
           });
-      }
-    ], function(err){
+      },
+    ], (err) => {
       done(err);
     });
   });
 
-
-
-  it('should create delete instance routing', function(done) {
+  it('should create delete instance routing', (done) => {
     async.waterfall([
-      function(callback){
+      (callback) => {
         createCompany(callback);
       },
-      function(callback){
+      (callback) => {
         request(app)
           .delete('/api/companies/side')
           .expect(200)
-          .end(function(err, res){
+          .end((err) => {
             should.not.exist(err);
             callback();
           });
       },
-      function(callback){
+      (callback) => {
         request(app)
           .get('/api/companies/side')
           .expect(404)
-          .end(function(err, res){
+          .end((err, res) => {
             should.not.exist(err);
             res.body.should.have.property('id', 'Specified ID (side) does not exists in company');
             callback();
           });
-      }
-    ], function(err){
+      },
+    ], (err) => {
       done(err);
     });
   });
 
-  it('should create post update instance routing', function(done) {
-
+  it('should create post update instance routing', (done) => {
     async.waterfall([
-      function(callback){
+      (callback) => {
         createCompany(callback);
       },
-      function(callback){
+      (callback) => {
         request(app)
           .get('/api/companies/side')
           .expect(200)
-          .end(function(err, res){
+          .end((err, res) => {
             should.not.exist(err);
             res.body.should.have.property('id', 'side');
             res.body.should.have.property('name', 'Side');
@@ -1166,26 +1163,26 @@ describe('Creator', function () {
             callback();
           });
       },
-      function(callback){
+      (callback) => {
         createPerson(callback);
       },
-      function(callback){
+      (callback) => {
         request(app)
           .post('/api/companies/side')
           .type('json')
-          .send({president: 'sideroad'})
+          .send({ president: 'sideroad' })
           .expect(200)
-          .end(function(err, res){
+          .end((err, res) => {
             should.not.exist(err);
             res.body.should.not.have.property('msg');
             callback();
           });
       },
-      function(callback){
+      (callback) => {
         request(app)
           .get('/api/companies/side')
           .expect(200)
-          .end(function(err, res){
+          .end((err, res) => {
             should.not.exist(err);
             res.body.should.have.property('id', 'side');
             res.body.should.have.property('name', 'Side');
@@ -1197,23 +1194,23 @@ describe('Creator', function () {
             callback();
           });
       },
-      function(callback){
+      (callback) => {
         request(app)
           .post('/api/companies/side')
           .type('json')
-          .send({name: 'aaa'})
+          .send({ name: 'aaa' })
           .expect(400)
-          .end(function(err, res){
+          .end((err, res) => {
             should.not.exist(err);
             res.body.should.have.property('name', 'uniq key could not be changed');
             callback();
           });
       },
-      function(callback){
+      (callback) => {
         request(app)
           .get('/api/companies/side')
           .expect(200)
-          .end(function(err, res){
+          .end((err, res) => {
             should.not.exist(err);
             res.body.should.have.property('id', 'side');
             res.body.should.have.property('name', 'Side');
@@ -1225,23 +1222,23 @@ describe('Creator', function () {
             callback();
           });
       },
-      function(callback){
+      (callback) => {
         request(app)
           .post('/api/companies/side')
           .type('json')
-          .send({president: 'notexist'})
+          .send({ president: 'notexist' })
           .expect(400)
-          .end(function(err, res){
+          .end((err, res) => {
             should.not.exist(err);
-            res.body.should.have.property('president', 'Specified ID ( notexist ) does not exists in person');
+            res.body.should.have.property('president', 'Specified ID (notexist) does not exists in person');
             callback();
           });
       },
-      function(callback){
+      (callback) => {
         request(app)
           .get('/api/companies/side')
           .expect(200)
-          .end(function(err, res){
+          .end((err, res) => {
             should.not.exist(err);
             res.body.should.have.property('id', 'side');
             res.body.should.have.property('name', 'Side');
@@ -1253,23 +1250,23 @@ describe('Creator', function () {
             callback();
           });
       },
-      function(callback){
+      (callback) => {
         request(app)
           .post('/api/companies/side')
           .type('json')
-          .send({location: '12345'})
+          .send({ location: '12345' })
           .expect(400)
-          .end(function(err, res){
+          .end((err, res) => {
             should.not.exist(err);
             res.body.should.have.property('location', 'Only alphabets allowed');
             callback();
           });
       },
-      function(callback){
+      (callback) => {
         request(app)
           .get('/api/companies/side')
           .expect(200)
-          .end(function(err, res){
+          .end((err, res) => {
             should.not.exist(err);
             res.body.should.have.property('id', 'side');
             res.body.should.have.property('name', 'Side');
@@ -1280,34 +1277,31 @@ describe('Creator', function () {
             res.body.members.should.have.property('href', '/api/companies/side/members');
             callback();
           });
-      }
-    ], function(err){
+      },
+    ], (err) => {
       done(err);
     });
-
   });
 
-  it('should create api doc', function(done) {
-    var path = require('path'),
-        dest = path.join( __dirname, '../doc' );
+  it('should create api doc', (done) => {
+    const dest = path.join(__dirname, '../doc');
 
     creator.createDoc({
-      "name": "RESTful API",
-      "version": "1.0.0",
-      "description": "apidoc example project",
-      "title": "Custom apiDoc browser title",
-      "url" : "https://express-restful-api-sample.herokuapp.com",
-      "sampleUrl": "https://express-restful-api-sample.herokuapp.com",
-      "template": {
-        "withCompare": false,
-        "withGenerator": true
+      name: 'RESTful API',
+      version: '1.0.0',
+      description: 'apidoc example project',
+      title: 'Custom apiDoc browser title',
+      url: 'https://express-restful-api-sample.herokuapp.com',
+      sampleUrl: 'https://express-restful-api-sample.herokuapp.com',
+      template: {
+        withCompare: false,
+        withGenerator: true,
       },
-      "dest": dest
+      dest,
     });
 
-    var comments = fs.readFileSync(path.join(dest, 'apicomment.js'));
+    const comments = fs.readFileSync(path.join(dest, 'apicomment.js'));
     should.exist(comments);
     done();
   });
-
 });

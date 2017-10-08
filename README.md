@@ -20,7 +20,7 @@ app.use(bodyParser.urlencoded({ extended: false }));
 // register router
 app.use('/', creator.router({
   mongo: process.env.MONGO_URL,
-  schema: {
+  schemas: {
 
     // register company model
     company: {
@@ -146,3 +146,7 @@ See [apidoc](https://github.com/apidoc/apidoc) to check other parameter
 
 ## Influences
 API strongly influenced great architecture [Beautiful REST + JSON APIs](http://www.slideshare.net/stormpath/rest-jsonapis)
+
+## Change log
+### 13.0.0
+Change property name from `schema` to `schemas`
