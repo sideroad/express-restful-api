@@ -1,4 +1,4 @@
-import resutils from '../lib/resutils';
+import resutils from '../src/resutils';
 
 describe('error', () => {
   it('should send error', (done) => {

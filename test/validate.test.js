@@ -1,4 +1,4 @@
-import validate from '../lib/validate';
+import validate from '../src/validate';
 
 describe('validate', () => {
   it('should return message when invalid data is exists', (done) => {

@@ -1,6 +1,6 @@
 {
   "name": "express-restful-api",
-  "version": "13.2.0",
+  "version": "13.3.0",
   "main": "lib/index.js",
   "scripts": {
     "test": "npm run build && mocha test --require babel-polyfill --compilers js:babel-register --timeout=20000",
@@ -35,6 +35,7 @@
   ],
   "devDependencies": {
     "babel-cli": "^6.26.0",
+    "babel-plugin-transform-object-rest-spread": "^6.26.0",
     "babel-polyfill": "^6.26.0",
     "babel-preset-env": "^1.6.0",
     "babel-register": "^6.26.0",

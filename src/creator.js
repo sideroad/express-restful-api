@@ -621,7 +621,7 @@ Creator.prototype = {
       .value();
   },
 
-  postInstance: function postInstanceFn(key, model) {
+  postInstanceOrCollection: function postInstanceOrCollectionFn(key, model) {
     const keys = pluralize(key);
     const prefix = this.prefix;
     const before = this.before;
@@ -652,88 +652,119 @@ Creator.prototype = {
           .compact()
           .value();
         const md5 = crypto.createHash('md5');
-        const params = this.params(model, req);
-        const results = validate(model, params);
-
         let process = [];
-        let id;
-        let text = '';
-
-        if (!results.ok) {
-          res.status(400).json(results);
-          return;
-        }
-
-        if (uniqKeys.length === 1) {
-          const val = params[uniqKeys[0]];
-          id = String(val != null ? val : '').replace(/[\s./]+/g, '_').toLowerCase();
-          if (!/^[a-z_0-9-]+$/.test(id)) {
-            md5.update(id);
-            id = md5.digest('hex').substr(0, 7);
-          }
-        } else if (uniqKeys.length) {
-          md5.update(uniqKeys.map((uniqKey) => {
-            const val = params[uniqKey];
-            return String(val != null ? val : '').replace(/[\s./]+/g, '_').toLowerCase();
-          }).join('-'));
-          id = md5.digest('hex').substr(0, 7);
-        } else {
-          md5.update(`${new Date().getTime()}:${Math.random()}`);
-          id = md5.digest('hex').substr(0, 7);
-        }
-
-        text = texts.map(textString =>
-          params[textString],
-        ).join(' ');
-
-        // Confirm duplicated data existance
-        process.push((callback) => {
-          this.mongooseModels[key].findOne({ id }, (err, instance) => {
-            callback(instance ? {
-              message: 'Duplicate id exists',
-              code: 409,
-            } : null);
+        const ids = [];
+        (req.body.items ? req.body.items : [req.body]).forEach((body) => {
+          let id;
+          const params = this.params(model, {
+            params: req.params,
+            query: req.query,
+            body,
           });
-        });
 
-        // Confirm parent, instance data existance
-        process = process.concat(this.validateRelatedDataExistance(req, model));
+          process.push(
+            (_callback) => {
+              const results = validate(model, params);
+              if (!results.ok) {
+                _callback({
+                  err: results,
+                  code: 400,
+                });
+              } else {
+                _callback();
+              }
+            },
+          );
 
-        // Push key onto parent object
-        process = process.concat(this.getProcessUpdateParent(req, model, this.mongooseModels[key]));
+          process.push(
+            (_callback) => {
+              if (uniqKeys.length === 1) {
+                const val = params[uniqKeys[0]];
+                id = String(val || '').replace(/[\s./]+/g, '_').toLowerCase();
+                if (!/^[a-z_0-9-]+$/.test(id)) {
+                  md5.update(id);
+                  id = md5.digest('hex').substr(0, 7);
+                }
+              } else if (uniqKeys.length) {
+                md5.update(uniqKeys.map((uniqKey) => {
+                  const val = params[uniqKey];
+                  return String(val != null ? val : '').replace(/[\s./]+/g, '_').toLowerCase();
+                }).join('-'));
+                id = md5.digest('hex').substr(0, 7);
+              } else {
+                md5.update(`${new Date().getTime()}:${Math.random()}`);
+                id = md5.digest('hex').substr(0, 7);
+              }
+              ids.push(id);
+              _callback();
+            },
+          );
 
-        process = process.concat([
-          (callback) => {
-            const now = moment().format();
-            const Model = this.mongooseModels[key];
-            const instance = new Model(
-              _.assign({
-                id,
-              }, params, {
-                q: text,
-                createdAt: now,
-                updatedAt: now,
-              }),
-            );
-
-            instance.save((err) => {
-              callback(err);
+          // Confirm duplicated data existance
+          process.push((_callback) => {
+            this.mongooseModels[key].findOne({ id }, (err, instance) => {
+              _callback(instance ? {
+                message: 'Duplicate id exists',
+                code: 409,
+              } : null);
             });
-          },
-        ]);
+          });
+
+          // Confirm parent, instance data existance
+          process = process.concat(this.validateRelatedDataExistance(req, model));
+
+          // Push key onto parent object
+          process = process.concat(
+            this.getProcessUpdateParent(req, model, this.mongooseModels[key]),
+          );
+
+          process = process.concat([
+            (_callback) => {
+              const text = texts.map(textString =>
+                params[textString],
+              ).join(' ');
+              const now = moment().format();
+              const Model = this.mongooseModels[key];
+              const instance = new Model(
+                _.assign({
+                  id,
+                }, params, {
+                  q: text,
+                  createdAt: now,
+                  updatedAt: now,
+                }),
+              );
+
+              instance.save((err) => {
+                _callback(err ? {
+                  err,
+                } : null);
+              });
+            },
+          ]);
+        });
 
         async.waterfall(process, (err) => {
           if (err) {
             resutils.error(res, err);
             return;
           }
-          const href = `${prefix}/${keys}/${id}`;
-          res.location(href);
-          res.status(201);
-          after(req, res, {
-            id,
-            href,
-          }, key);
+          if (req.body.items) {
+            res.status(201);
+            after(req, res, {
+              items: ids.map(id => ({
+                id,
+                href: `${prefix}/${keys}/${id}`,
+              })),
+            }, key);
+          } else {
+            const href = `${prefix}/${keys}/${ids[0]}`;
+            res.status(201).location(href);
+            after(req, res, {
+              id: ids[0],
+              href,
+            }, key);
+          }
         });
       },
     );

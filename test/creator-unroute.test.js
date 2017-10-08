@@ -4,7 +4,7 @@ import mongoose from 'mongoose';
 import bodyParser from 'body-parser';
 import async from 'async';
 import request from 'supertest';
-import Creator from '../lib/creator';
+import Creator from '../src/creator';
 
 const app = express();
 const router = express.Router();
@@ -72,19 +72,19 @@ describe('Creator Unroute', () => {
     creator.getInstance('company', schema.company);
     creator.getCollection('company', schema.company);
     creator.getChildren('company', { type: 'children', relation: 'person' }, 'members', schema.person);
-    creator.postInstance('company', schema.company);
+    creator.postInstanceOrCollection('company', schema.company);
     creator.deleteCollection('company', schema.company);
 
     creator.model('person', schema.person);
     creator.getInstance('person', schema.person);
     creator.getCollection('person', schema.person);
-    creator.postInstance('person', schema.person);
+    creator.postInstanceOrCollection('person', schema.person);
     creator.deleteCollection('person', schema.person);
 
     creator.model('holiday', schema.holiday);
     creator.getInstance('holiday', schema.holiday);
     creator.getCollection('holiday', schema.holiday);
-    creator.postInstance('holiday', schema.holiday);
+    creator.postInstanceOrCollection('holiday', schema.holiday);
     creator.deleteCollection('holiday', schema.holiday);
   });
 

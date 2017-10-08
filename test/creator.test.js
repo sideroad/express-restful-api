@@ -6,7 +6,7 @@ import bodyParser from 'body-parser';
 import async from 'async';
 import mongoose from 'mongoose';
 import path from 'path';
-import Creator from '../lib/creator';
+import Creator from '../src/creator';
 
 const router = express.Router();
 const app = express();
@@ -81,19 +81,19 @@ describe('Creator', () => {
     creator.getChildren('company', { type: 'children', relation: 'person' }, 'members', schemas.person);
     creator.deleteInstance('company', schemas.company);
     creator.postOrPatchAsUpdate('company', schemas.company);
-    creator.postInstance('company', schemas.company);
+    creator.postInstanceOrCollection('company', schemas.company);
     creator.deleteCollection('company', schemas.company);
 
     creator.model('person', schemas.person);
     creator.getInstance('person', schemas.person);
     creator.getCollection('person', schemas.person);
-    creator.postInstance('person', schemas.person);
+    creator.postInstanceOrCollection('person', schemas.person);
     creator.deleteCollection('person', schemas.person);
 
     creator.model('holiday', schemas.holiday);
     creator.getInstance('holiday', schemas.holiday);
     creator.getCollection('holiday', schemas.holiday);
-    creator.postInstance('holiday', schemas.holiday);
+    creator.postInstanceOrCollection('holiday', schemas.holiday);
     creator.deleteCollection('holiday', schemas.holiday);
   });
 
@@ -170,6 +170,31 @@ describe('Creator', () => {
     });
   };
 
+  const createBulkCompany = (callback) => {
+    request(app)
+      .post('/api/companies')
+      .type('json')
+      .send({
+        items: validCompanies,
+      })
+      .expect(201)
+      .end((err, res) => {
+        should.not.exist(err);
+        res.body.should.have.property('items', [
+          {
+            href: '/api/companies/side',
+            id: 'side',
+          },
+          {
+            href: '/api/companies/road',
+            id: 'road',
+          },
+        ]);
+
+        callback(err);
+      });
+  };
+
   const createInvalidCompany = (callback) => {
     async.mapSeries([
       invalidCompany,
@@ -192,6 +217,27 @@ describe('Creator', () => {
       should.not.exist(err);
       callback();
     });
+  };
+
+  const createBulkInvalidCompany = (callback) => {
+    request(app)
+      .post('/api/companies')
+      .type('json')
+      .send({
+        items: [
+          invalidCompany,
+          {
+            name: '',
+          },
+          {},
+        ],
+      })
+      .expect(400)
+      .end((err, res) => {
+        should.not.exist(err);
+        res.body.should.have.property('name', 'Only alphabets number spaces allowed');
+        callback(err);
+      });
   };
 
   const createCompanyWithIvalidPresident = (callback) => {
@@ -514,10 +560,16 @@ describe('Creator', () => {
     });
   });
 
-  describe('create post instance routing', () => {
+  describe('create post instance or collection routing', () => {
     it('should create instance', (done) => {
       createCompany(() => {
         createInvalidCompany(done);
+      });
+    });
+
+    it('should create collection', (done) => {
+      createBulkCompany(() => {
+        createBulkInvalidCompany(done);
       });
     });
 
