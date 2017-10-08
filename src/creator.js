@@ -110,7 +110,13 @@ Creator.prototype = {
       if (doc.method === 'get' &&
           !doc.validate) {
         params.push('@apiParam {String} [fields] Pertial attribution will be responsed.');
-        params.push('                   Attributions should be separated with comma.');
+        params.push('Attributions should be separated with comma.');
+      }
+
+      if (doc.method === 'get' &&
+          doc.collection) {
+        params.push('@apiParam {String} [expands] Expand specified `parent`, `instance` fields.');
+        params.push('`children` field could not expanded.');
       }
 
       if (doc.params) {
