@@ -80,7 +80,7 @@ describe('Creator', () => {
     creator.getCollection('company', schemas.company);
     creator.getChildren('company', { type: 'children', relation: 'person' }, 'members', schemas.person);
     creator.deleteInstance('company', schemas.company);
-    creator.postAsUpdate('company', schemas.company);
+    creator.postOrPatchAsUpdate('company', schemas.company);
     creator.postInstance('company', schemas.company);
     creator.deleteCollection('company', schemas.company);
 
@@ -139,10 +139,12 @@ describe('Creator', () => {
     {
       name: 'Side',
       isStockListing: true,
+      location: 'Japan',
     },
     {
       name: 'Road',
       isStockListing: false,
+      location: 'USA',
     },
   ];
 
@@ -1198,7 +1200,7 @@ describe('Creator', () => {
     });
   });
 
-  it('should create post update instance routing', (done) => {
+  it('should create post or patch as update instance routing', (done) => {
     async.waterfall([
       (callback) => {
         createCompany(callback);
@@ -1235,12 +1237,25 @@ describe('Creator', () => {
       },
       (callback) => {
         request(app)
+          .patch('/api/companies/side')
+          .type('json')
+          .send({ location: 'Vienna' })
+          .expect(200)
+          .end((err, res) => {
+            should.not.exist(err);
+            res.body.should.not.have.property('msg');
+            callback();
+          });
+      },
+      (callback) => {
+        request(app)
           .get('/api/companies/side')
           .expect(200)
           .end((err, res) => {
             should.not.exist(err);
             res.body.should.have.property('id', 'side');
             res.body.should.have.property('name', 'Side');
+            res.body.should.have.property('location', 'Vienna');
             res.body.should.have.property('createdAt');
             res.body.should.have.property('updatedAt');
             res.body.president.should.have.property('href', '/api/people/sideroad');
@@ -1252,6 +1267,18 @@ describe('Creator', () => {
       (callback) => {
         request(app)
           .post('/api/companies/side')
+          .type('json')
+          .send({ name: 'aaa' })
+          .expect(400)
+          .end((err, res) => {
+            should.not.exist(err);
+            res.body.should.have.property('name', 'uniq key could not be changed');
+            callback();
+          });
+      },
+      (callback) => {
+        request(app)
+          .patch('/api/companies/side')
           .type('json')
           .send({ name: 'aaa' })
           .expect(400)
@@ -1291,6 +1318,18 @@ describe('Creator', () => {
       },
       (callback) => {
         request(app)
+          .patch('/api/companies/side')
+          .type('json')
+          .send({ president: 'notexist' })
+          .expect(400)
+          .end((err, res) => {
+            should.not.exist(err);
+            res.body.should.have.property('president', 'Specified ID (notexist) does not exists in person');
+            callback();
+          });
+      },
+      (callback) => {
+        request(app)
           .get('/api/companies/side')
           .expect(200)
           .end((err, res) => {
@@ -1308,6 +1347,18 @@ describe('Creator', () => {
       (callback) => {
         request(app)
           .post('/api/companies/side')
+          .type('json')
+          .send({ location: '12345' })
+          .expect(400)
+          .end((err, res) => {
+            should.not.exist(err);
+            res.body.should.have.property('location', 'Only alphabets allowed');
+            callback();
+          });
+      },
+      (callback) => {
+        request(app)
+          .patch('/api/companies/side')
           .type('json')
           .send({ location: '12345' })
           .expect(400)

@@ -947,7 +947,7 @@ Creator.prototype = {
     return result;
   },
 
-  postAsUpdate: function postAsUpdateFn(key, model) {
+  postOrPatchAsUpdate: function postOrPatchAsUpdateFn(key, model) {
     const keys = pluralize(key);
     const prefix = this.prefix;
     const before = this.before;
@@ -962,7 +962,7 @@ Creator.prototype = {
       group: key,
       name: 'Update instance',
     });
-    this.router.post(
+    const routes = [
       `${prefix}/${keys}/:id`,
       this.auth,
       (req, res, next) => {
@@ -1010,7 +1010,9 @@ Creator.prototype = {
           },
         );
       },
-    );
+    ];
+    this.router.post(...routes);
+    this.router.patch(...routes);
   },
 
   deleteCollection: function deleteCollectionFn(key, model) {

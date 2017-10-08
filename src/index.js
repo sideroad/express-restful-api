@@ -39,7 +39,7 @@ module.exports = {
       applyChildren(creator, key, schemas, model);
 
       creator.postInstance(key, model);
-      creator.postAsUpdate(key, model);
+      creator.postOrPatchAsUpdate(key, model);
 
       creator.deleteCollection(key, model);
       creator.deleteInstance(key, model);
