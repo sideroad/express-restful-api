@@ -884,53 +884,6 @@ Creator.prototype = {
     );
   },
 
-  putAsUpdate: function putAsUpdateFn(key, model) {
-    const keys = pluralize(key);
-    const prefix = this.prefix;
-    const before = this.before;
-    const after = this.after;
-
-    /**
-     * Update instance as full replacement with specified ID
-     */
-    this.doc({
-      method: 'put',
-      url: `${prefix}/${keys}/:id`,
-      group: key,
-      name: 'Update instance',
-    });
-    this.router.put(
-      `${prefix}/${keys}/:id`,
-      this.auth,
-      (req, res, next) => {
-        before(req, res, next, key);
-      },
-      (req, res) => {
-        const params = this.params(model, req);
-
-        async.waterfall([
-          (callback) => {
-            const now = moment().format();
-
-            this.mongooseModels[key].findOneAndUpdate({
-              id: req.params.id,
-            }, _.assign(params, {
-              updatedAt: now,
-            }), (err) => {
-              callback(err);
-            });
-          },
-        ], (err) => {
-          if (err) {
-            resutils.error(res, err);
-            return;
-          }
-          after(req, res, {}, key);
-        });
-      },
-    );
-  },
-
   validatePermission: function validatePermissionFn(model, params) {
     const uniqKeys = this.getUniqKeys(model);
     const result = {
