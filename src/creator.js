@@ -218,6 +218,18 @@ Creator.prototype = {
     this.requestAttrs[key] = _attrs;
   },
 
+  parseOrder: function parseOrderFn(orderBy = '') {
+    const sort = {};
+    orderBy.split(',').forEach((set) => {
+      if (!set) {
+        return;
+      }
+      const [key, val] = set.split(':');
+      sort[key] = val === 'asc' ? 1 : -1;
+    });
+    return sort;
+  },
+
   fields: function fieldsFn(key, params) {
     const fields = _.map(params || this.mongooseSchemas[key], (attr, name) =>
       name,
@@ -558,6 +570,7 @@ Creator.prototype = {
             this.mongooseModels[key].find(cond, reqFields ? `${reqFields.replace(/,/g, ' ')} -_id` : fields, {
               skip: offset,
               limit,
+              sort: this.parseOrder(req.query.orderBy),
             }, (err, collection) => {
               callback(err, collection);
             });
@@ -835,6 +848,7 @@ Creator.prototype = {
             this.mongooseModels[attr.relation].find(cond, reqFields ? `${reqFields.replace(/,/g, ' ')} -_id` : fields, {
               skip: offset,
               limit,
+              sort: this.parseOrder(req.query.orderBy),
             }, (err, collection) => {
               callback(err, collection);
             });

@@ -259,6 +259,7 @@ describe('Creator', () => {
       }, {
         name: 'foobar',
         company: 'road',
+        age: 40,
       },
     ], (data, mapCallback) => {
       request(app)
@@ -383,6 +384,17 @@ describe('Creator', () => {
   it('should return each fields', (done) => {
     creator.fields('company').should.equal('id name members president location isStockListing createdAt updatedAt -_id');
     creator.fields('person').should.equal('id name company age createdAt updatedAt -_id');
+    done();
+  });
+
+  it('should return sort object for mongoose', (done) => {
+    creator.parseOrder('company:asc').should.deepEqual({
+      company: 1,
+    });
+    creator.parseOrder('company:asc,person:desc').should.deepEqual({
+      company: 1,
+      person: -1,
+    });
     done();
   });
 
@@ -688,7 +700,7 @@ describe('Creator', () => {
             res.body.items[1].company.should.have.property('id', 'road');
             res.body.items[2].should.have.property('id', 'foobar');
             res.body.items[2].should.have.property('name', 'foobar');
-            res.body.items[2].should.have.property('age', null);
+            res.body.items[2].should.have.property('age', 40);
             res.body.items[2].should.have.property('createdAt');
             res.body.items[2].should.have.property('updatedAt');
             res.body.items[2].company.should.have.property('href', '/api/companies/road');
@@ -828,6 +840,26 @@ describe('Creator', () => {
       },
       (callback) => {
         request(app)
+          .get('/api/people?orderBy=age:asc')
+          .expect(200)
+          .end((err, res) => {
+            should.not.exist(err);
+            res.body.should.have.property('offset', 0);
+            res.body.should.have.property('limit', 25);
+            res.body.should.have.property('first', '/api/people?offset=0&limit=25');
+            res.body.should.have.property('last', '/api/people?offset=0&limit=25');
+            res.body.should.have.property('next', null);
+            res.body.should.have.property('prev', null);
+            res.body.items.length.should.equal(3);
+            res.body.items[0].should.have.property('id', 'roadside');
+            res.body.items[0].should.have.property('name', 'roadside');
+            res.body.items[2].should.have.property('id', 'foobar');
+            res.body.items[2].should.have.property('name', 'foobar');
+            callback();
+          });
+      },
+      (callback) => {
+        request(app)
           .get('/api/people?q=foo')
           .expect(200)
           .end((err, res) => {
@@ -841,7 +873,7 @@ describe('Creator', () => {
             res.body.items.length.should.equal(1);
             res.body.items[0].should.have.property('id', 'foobar');
             res.body.items[0].should.have.property('name', 'foobar');
-            res.body.items[0].should.have.property('age', null);
+            res.body.items[0].should.have.property('age', 40);
             res.body.items[0].should.have.property('createdAt');
             res.body.items[0].should.have.property('updatedAt');
             res.body.items[0].company.should.have.property('href', '/api/companies/road');
@@ -881,7 +913,7 @@ describe('Creator', () => {
 
             res.body.items[2].should.have.property('id', 'foobar');
             res.body.items[2].should.have.property('name', 'foobar');
-            res.body.items[2].should.have.property('age', null);
+            res.body.items[2].should.have.property('age', 40);
             res.body.items[2].should.have.property('createdAt');
             res.body.items[2].should.have.property('updatedAt');
             res.body.items[2].company.should.have.property('href', '/api/companies/road');
@@ -1106,6 +1138,26 @@ describe('Creator', () => {
             res.body.items[0].should.not.have.property('company');
             res.body.items[0].should.not.have.property('createdAt');
             res.body.items[0].should.not.have.property('updatedAt');
+            callback();
+          });
+      },
+      (callback) => {
+        request(app)
+          .get('/api/companies/road/members?orderBy=age:desc')
+          .expect(200)
+          .end((err, res) => {
+            should.not.exist(err);
+            res.body.should.have.property('offset', 0);
+            res.body.should.have.property('limit', 25);
+            res.body.should.have.property('first', '/api/companies/road/members?offset=0&limit=25');
+            res.body.should.have.property('last', '/api/companies/road/members?offset=0&limit=25');
+            res.body.should.have.property('next', null);
+            res.body.should.have.property('prev', null);
+            res.body.items.length.should.equal(2);
+            res.body.items[0].should.have.property('id', 'foobar');
+            res.body.items[0].should.have.property('name', 'foobar');
+            res.body.items[1].should.have.property('id', 'roadside');
+            res.body.items[1].should.have.property('name', 'roadside');
             callback();
           });
       },
