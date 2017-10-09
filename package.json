@@ -1,6 +1,6 @@
 {
   "name": "express-restful-api",
-  "version": "13.3.1",
+  "version": "14.0.0",
   "main": "lib/index.js",
   "scripts": {
     "test": "npm run build && mocha test --require babel-polyfill --compilers js:babel-register --timeout=20000",

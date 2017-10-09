@@ -148,5 +148,8 @@ See [apidoc](https://github.com/apidoc/apidoc) to check other parameter
 API strongly influenced great architecture [Beautiful REST + JSON APIs](http://www.slideshare.net/stormpath/rest-jsonapis)
 
 ## Change log
+### 14.0.0
+Change Validate method from 'GET' to 'POST'
+
 ### 13.0.0
 Change property name from `schema` to `schemas`

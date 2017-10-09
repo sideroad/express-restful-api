@@ -270,9 +270,8 @@ describe('Creator', () => {
         .set('X-Validation', 'true')
         .send(data)
         .expect(200)
-        .end((err, res) => {
+        .end((err) => {
           should.not.exist(err);
-          res.body.should.have.property('ok');
           mapCallback(err);
         });
     }, (err) => {
@@ -281,11 +280,42 @@ describe('Creator', () => {
     });
   };
 
+  const validateBulkCompany = (callback) => {
+    request(app)
+      .post('/api/companies')
+      .set('X-Validation', 'true')
+      .send({
+        items: validCompanies,
+      })
+      .expect(200)
+      .end((err) => {
+        should.not.exist(err);
+        callback(err);
+      });
+  };
+
   const validateInvalidCompany = (callback) => {
     request(app)
       .post('/api/companies')
       .set('X-Validation', 'true')
       .send(invalidCompany)
+      .expect(400)
+      .end((err, res) => {
+        should.not.exist(err);
+        res.body.should.have.property('name', 'Only alphabets number spaces allowed');
+        callback(err);
+      });
+  };
+
+  const validateBulkInvalidCompany = (callback) => {
+    request(app)
+      .post('/api/companies')
+      .set('X-Validation', 'true')
+      .send({
+        items: [
+          invalidCompany,
+        ],
+      })
       .expect(400)
       .end((err, res) => {
         should.not.exist(err);
@@ -595,9 +625,15 @@ describe('Creator', () => {
   });
 
   describe('create validate routing', () => {
-    it('should validate', (done) => {
+    it('should validate instance', (done) => {
       validateCompany(() => {
         validateInvalidCompany(done);
+      });
+    });
+
+    it('should validate bulk collection', (done) => {
+      validateBulkCompany(() => {
+        validateBulkInvalidCompany(done);
       });
     });
   });

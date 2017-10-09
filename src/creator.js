@@ -632,13 +632,34 @@ Creator.prototype = {
       },
       (req, res, next) => {
         if (req.headers['x-validation'] === 'true') {
-          async.waterfall(this.validateRelatedDataExistance(req, model), (err) => {
-            const params = this.params(model, req);
-            const results = validate(model, params);
+          const process = [];
+          (req.body.items ? req.body.items : [req.body]).forEach((body) => {
+            const reqInstance = {
+              params: req.params,
+              query: req.query,
+              body,
+            };
+            process.push(...this.validateRelatedDataExistance(reqInstance, model));
+            process.push(
+              (callback) => {
+                const params = this.params(model, reqInstance);
+                const results = validate(model, params);
+                if (!results.ok) {
+                  callback({
+                    err: results,
+                    code: 400,
+                  });
+                } else {
+                  callback();
+                }
+              },
+            );
+          });
+          async.waterfall(process, (err) => {
             if (err) {
               resutils.error(res, err);
             } else {
-              res.status(results.ok ? 200 : 400).json(results).end();
+              res.status(200).json({}).end();
             }
           });
         } else {
@@ -654,7 +675,7 @@ Creator.prototype = {
           .compact()
           .value();
         const md5 = crypto.createHash('md5');
-        let process = [];
+        const process = [];
         const ids = [];
 
         (req.body.items ? req.body.items : [req.body]).forEach((body) => {
@@ -722,14 +743,14 @@ Creator.prototype = {
           });
 
           // Confirm parent, instance data existance
-          process = process.concat(this.validateRelatedDataExistance(req, model));
+          process.push(...this.validateRelatedDataExistance(req, model));
 
           // Push key onto parent object
-          process = process.concat(
-            this.getProcessUpdateParent(req, model, this.mongooseModels[key]),
+          process.push(
+            ...this.getProcessUpdateParent(req, model, this.mongooseModels[key]),
           );
 
-          process = process.concat([
+          process.push(
             (_callback) => {
               const text = texts.map(textString =>
                 params[textString],
@@ -752,7 +773,7 @@ Creator.prototype = {
                 } : null);
               });
             },
-          ]);
+          );
         });
 
         async.waterfall(process, (err) => {
