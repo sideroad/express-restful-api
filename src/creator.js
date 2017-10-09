@@ -520,16 +520,6 @@ Creator.prototype = {
         'X-JSON-Schema': 'When the header has <code>true</code>, response JSON Schema instead',
       },
     });
-    this.doc({
-      method: 'get',
-      url: `${prefix}/${keys}`,
-      group: key,
-      name: 'Validate parameters',
-      validate: true,
-      headers: {
-        'X-Validation': 'When the header has <code>true</code>, validate parameters',
-      },
-    });
 
     this.router.get(
       `${prefix}/${keys}`,
@@ -540,21 +530,6 @@ Creator.prototype = {
       (req, res, next) => {
         if (req.headers['x-json-schema'] === 'true') {
           res.status(200).json(this.getJsonSchema(key, model)).end();
-        } else {
-          next();
-        }
-      },
-      (req, res, next) => {
-        if (req.headers['x-validation'] === 'true') {
-          async.waterfall(this.validateRelatedDataExistance(req, model), (err) => {
-            const params = this.params(model, req);
-            const results = validate(model, params);
-            if (err) {
-              resutils.error(res, err);
-            } else {
-              res.status(results.ok ? 200 : 400).json(results).end();
-            }
-          });
         } else {
           next();
         }
@@ -637,11 +612,38 @@ Creator.prototype = {
       name: 'Create instance',
       create: true,
     });
+
+    this.doc({
+      method: 'post',
+      url: `${prefix}/${keys}`,
+      group: key,
+      name: 'Validate parameters',
+      validate: true,
+      headers: {
+        'X-Validation': 'When the header has <code>true</code>, validate parameters',
+      },
+    });
+
     this.router.post(
       `${prefix}/${keys}`,
       this.auth,
       (req, res, next) => {
         before(req, res, next, key);
+      },
+      (req, res, next) => {
+        if (req.headers['x-validation'] === 'true') {
+          async.waterfall(this.validateRelatedDataExistance(req, model), (err) => {
+            const params = this.params(model, req);
+            const results = validate(model, params);
+            if (err) {
+              resutils.error(res, err);
+            } else {
+              res.status(results.ok ? 200 : 400).json(results).end();
+            }
+          });
+        } else {
+          next();
+        }
       },
       (req, res) => {
         const uniqKeys = this.getUniqKeys(model);

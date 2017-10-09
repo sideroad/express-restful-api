@@ -52,26 +52,6 @@
  */
 
 /**
- * @api {get} /api/companies Validate parameters
- * @apiName CompanyValidateParameters
- * @apiGroup Company
- * @apiParam {String} [name]  
- * 
- * @apiParam {String} [president]  person id
- * @apiParam {String} [location]  
- * @apiParam {Boolean} [isStockListing]  
- * 
- * @apiSuccess {String} name 
- * 
- * @apiSuccess {Object} president linking of person
- * @apiSuccess {String} location 
- * @apiSuccess {Boolean} isStockListing 
- * 
- * 
- * @apiHeader {String} X-Validation When the header has <code>true</code>, validate parameters
- */
-
-/**
  * @api {get} /api/companies/:id/members Get members collection
  * @apiName CompanyGetMembersCollection
  * @apiGroup Company
@@ -130,6 +110,19 @@
  * @apiParam {Boolean} [isStockListing]  
  * 
  * 
+ */
+
+/**
+ * @api {post} /api/companies Validate parameters
+ * @apiName CompanyValidateParameters
+ * @apiGroup Company
+ * @apiParam {String} [name]  
+ * 
+ * @apiParam {String} [president]  person id
+ * @apiParam {String} [location]  
+ * @apiParam {Boolean} [isStockListing]  
+ * 
+ * @apiHeader {String} X-Validation When the header has <code>true</code>, validate parameters
  */
 
 /**
@@ -194,22 +187,6 @@
  */
 
 /**
- * @api {get} /api/people Validate parameters
- * @apiName PersonValidateParameters
- * @apiGroup Person
- * @apiParam {String} [name]  
- * @apiParam {String} [company]  
- * @apiParam {Number} [age]  
- * 
- * @apiSuccess {String} name 
- * @apiSuccess {String} company 
- * @apiSuccess {Number} age 
- * 
- * 
- * @apiHeader {String} X-Validation When the header has <code>true</code>, validate parameters
- */
-
-/**
  * @api {post} /api/people Create instance
  * @apiName PersonCreateInstance
  * @apiGroup Person
@@ -218,6 +195,17 @@
  * @apiParam {Number} [age]  
  * 
  * 
+ */
+
+/**
+ * @api {post} /api/people Validate parameters
+ * @apiName PersonValidateParameters
+ * @apiGroup Person
+ * @apiParam {String} [name]  
+ * @apiParam {String} [company]  
+ * @apiParam {Number} [age]  
+ * 
+ * @apiHeader {String} X-Validation When the header has <code>true</code>, validate parameters
  */
 
 /**
@@ -280,22 +268,6 @@
  */
 
 /**
- * @api {get} /api/holidays Validate parameters
- * @apiName HolidayValidateParameters
- * @apiGroup Holiday
- * @apiParam {String} [name]  
- * @apiParam {String} [start]  
- * @apiParam {String} [end]  
- * 
- * @apiSuccess {String} name 
- * @apiSuccess {String} start 
- * @apiSuccess {String} end 
- * 
- * 
- * @apiHeader {String} X-Validation When the header has <code>true</code>, validate parameters
- */
-
-/**
  * @api {post} /api/holidays Create instance
  * @apiName HolidayCreateInstance
  * @apiGroup Holiday
@@ -304,6 +276,17 @@
  * @apiParam {String} [end]  
  * 
  * 
+ */
+
+/**
+ * @api {post} /api/holidays Validate parameters
+ * @apiName HolidayValidateParameters
+ * @apiGroup Holiday
+ * @apiParam {String} [name]  
+ * @apiParam {String} [start]  
+ * @apiParam {String} [end]  
+ * 
+ * @apiHeader {String} X-Validation When the header has <code>true</code>, validate parameters
  */
 
 /**

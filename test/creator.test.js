@@ -266,7 +266,7 @@ describe('Creator', () => {
   const validateCompany = (callback) => {
     async.mapSeries(validCompanies, (data, mapCallback) => {
       request(app)
-        .get('/api/companies')
+        .post('/api/companies')
         .set('X-Validation', 'true')
         .send(data)
         .expect(200)
@@ -283,7 +283,7 @@ describe('Creator', () => {
 
   const validateInvalidCompany = (callback) => {
     request(app)
-      .get('/api/companies')
+      .post('/api/companies')
       .set('X-Validation', 'true')
       .send(invalidCompany)
       .expect(400)
