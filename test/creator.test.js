@@ -303,6 +303,7 @@ describe('Creator', () => {
       .end((err, res) => {
         should.not.exist(err);
         res.body.should.have.property('name', 'Only alphabets number spaces allowed');
+        res.body.should.have.property('index', 0);
         callback(err);
       });
   };
@@ -320,6 +321,7 @@ describe('Creator', () => {
       .end((err, res) => {
         should.not.exist(err);
         res.body.should.have.property('name', 'Only alphabets number spaces allowed');
+        res.body.should.have.property('index', 0);
         callback(err);
       });
   };

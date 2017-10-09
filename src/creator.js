@@ -633,7 +633,7 @@ Creator.prototype = {
       (req, res, next) => {
         if (req.headers['x-validation'] === 'true') {
           const process = [];
-          (req.body.items ? req.body.items : [req.body]).forEach((body) => {
+          (req.body.items ? req.body.items : [req.body]).forEach((body, index) => {
             const reqInstance = {
               params: req.params,
               query: req.query,
@@ -646,7 +646,10 @@ Creator.prototype = {
                 const results = validate(model, params);
                 if (!results.ok) {
                   callback({
-                    err: results,
+                    err: {
+                      index,
+                      ...results,
+                    },
                     code: 400,
                   });
                 } else {
