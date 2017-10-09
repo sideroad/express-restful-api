@@ -654,8 +654,8 @@ Creator.prototype = {
         const md5 = crypto.createHash('md5');
         let process = [];
         const ids = [];
+
         (req.body.items ? req.body.items : [req.body]).forEach((body) => {
-          let id;
           const params = this.params(model, {
             params: req.params,
             query: req.query,
@@ -675,6 +675,15 @@ Creator.prototype = {
               }
             },
           );
+        });
+
+        (req.body.items ? req.body.items : [req.body]).forEach((body) => {
+          let id;
+          const params = this.params(model, {
+            params: req.params,
+            query: req.query,
+            body,
+          });
 
           process.push(
             (_callback) => {
