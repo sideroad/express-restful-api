@@ -103,7 +103,56 @@ creator.router creates CRUD below
 - Delete instance ( DELETE )
 - Delete collection ( DELETE )
 
-#### Filtering collection fetch
+### Field control
+You can specify response field by `fields` parameter.
+Each fields should be separated with comma.
+
+```
+// Only name, age response fields should be response
+...fields=name,age
+```
+
+You can expand response field by `expands` parameter which has relation of `parent` or `instance` attribution type.
+
+##### Example
+Original resource fields of person
+```
+{
+  "name": "sideroad",
+  "company": {
+    "id": "8ab3de2",
+    "href": "/apis/companies/8ab3de2"
+  }
+}
+```
+
+Fetche with `expands=company` parameter
+```
+{
+  "name": "sideroad",
+  "company": {
+    "id": "8ab3de2",
+    "name": "FooBar",
+    "establishedAt": "2017-10-01T00:00:00+09:00",
+    "createdAt": "2017-10-01T00:00:00+09:00",
+    "updatedAt": "2017-10-01T00:00:00+09:00"
+  }
+}
+```
+
+### Fetching collection
+#### Sorting
+Your can specify sort order of collection.
+- `+` or not specify operand sorted by parameter ascending.
+- `-` operand sorted by parameter descending.
+You can specify multiple prioritized order separated with comma.
+Notice: operand should be encoded with URL parameter such as `%2B` in case of `+`.
+
+```
+// Get collection order by name asc, age desc.
+...orderBy=name,-age
+```
+#### Filtering
 ##### type of `string`
 You can use wildcard to get collection.
 
