@@ -677,7 +677,6 @@ Creator.prototype = {
           )
           .compact()
           .value();
-        const md5 = crypto.createHash('md5');
         const process = [];
         const ids = [];
 
@@ -713,6 +712,7 @@ Creator.prototype = {
 
           process.push(
             (_callback) => {
+              const md5 = crypto.createHash('md5');
               if (uniqKeys.length === 1) {
                 const val = params[uniqKeys[0]];
                 id = String(val || '').replace(/[\s./]+/g, '_').toLowerCase();
