@@ -10,6 +10,7 @@ import camelize from 'camelize';
 import unroute from 'unroute';
 import validate from './validate';
 import resutils from './resutils';
+import { schemefy } from './json-scheme';
 
 const Creator = function constructor({
   mongoose, router, prefix, before, after, client, secret, schemas,
@@ -466,31 +467,6 @@ Creator.prototype = {
     return process;
   },
 
-  getJsonSchema: function getJsonSchemaFn(_key, model) {
-    const json = {
-      properties: {},
-      required: [],
-    };
-
-    Object.keys(model).forEach((key) => {
-      const attr = model[key];
-      json.properties[key] = {
-        type: attr.type === 'number' ? 'number' : attr.type === 'boolean' ? 'boolean' : 'string',
-      };
-      if (attr.type === 'date') {
-        json.properties[key].format = 'date';
-      }
-      if (attr.pattern) {
-        json.properties[key].pattern = new RegExp(attr.pattern).toString();
-      }
-      if (attr.uniq || attr.required) {
-        json.required.push(key);
-      }
-    });
-
-    return json;
-  },
-
   getCollection: function getCollectionFn(key, model) {
     const keys = pluralize(key);
     const fields = this.fields(key);
@@ -529,7 +505,7 @@ Creator.prototype = {
       },
       (req, res, next) => {
         if (req.headers['x-json-schema'] === 'true') {
-          res.status(200).json(this.getJsonSchema(key, model)).end();
+          res.status(200).json(schemefy(prefix, key, model)).end();
         } else {
           next();
         }

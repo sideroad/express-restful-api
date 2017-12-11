@@ -1102,8 +1102,14 @@ describe('Creator', () => {
             should.not.exist(err);
             res.body.should.have.property('properties');
             res.body.properties.should.have.property('name');
-            res.body.properties.name.should.have.property('pattern', '/^[a-zA-Z 0-9]+$/');
+            res.body.properties.name.should.have.property('pattern', '^[a-zA-Z 0-9]+$');
             res.body.properties.name.should.have.property('type', 'string');
+            res.body.properties.members.should.have.property('type', 'children');
+            res.body.properties.members.should.have.property('rel', 'person');
+            res.body.properties.members.should.have.property('href', '/api/people');
+            res.body.properties.president.should.have.property('type', 'instance');
+            res.body.properties.president.should.have.property('rel', 'person');
+            res.body.properties.president.should.have.property('href', '/api/people');
             res.body.properties.isStockListing.should.have.property('type', 'boolean');
             res.body.required.length.should.equal(1);
             res.body.required[0].should.equal('name');
