@@ -13,7 +13,14 @@ import resutils from './resutils';
 import { schemefy } from './json-scheme';
 
 const Creator = function constructor({
-  mongoose, router, prefix, before, after, client, secret, schemas,
+  mongoose,
+  router,
+  prefix,
+  before,
+  after,
+  client,
+  secret,
+  schemas,
 }) {
   this.mongoose = mongoose;
   this.mongooseModels = {};
@@ -25,40 +32,52 @@ const Creator = function constructor({
   this.responseAttrs = {};
   this.docs = [];
   this.docOrder = [];
-  this.auth = client && secret ? (req, res, next) => {
-    if (req.headers['x-chaus-secret'] === secret &&
-        req.headers['x-chaus-client'] === client) {
+  this.auth =
+    client && secret
+      ? (req, res, next) => {
+        if (
+          req.headers['x-chaus-secret'] === secret &&
+            req.headers['x-chaus-client'] === client
+        ) {
+          next();
+        } else {
+          resutils.error(res, {
+            code: 400,
+            message: 'x-chaus-secret and / or x-chaus-client header are invalid',
+          });
+        }
+      }
+      : (req, res, next) => {
+        next();
+      };
+  this.before = before
+    ? (req, res, next, key) => {
+      before(req, res, next, key, this.mongooseModels);
+    }
+    : (req, res, next) => {
       next();
-    } else {
-      resutils.error(res, {
-        code: 400,
-        message: 'x-chaus-secret and / or x-chaus-client header are invalid',
-      });
+    };
+  this.after = after
+    ? (req, res, json, key) => {
+      after(req, res, json, key, this.mongooseModels);
     }
-  } : (req, res, next) => {
-    next();
-  };
-  this.before = before ? (req, res, next, key) => {
-    before(req, res, next, key, this.mongooseModels);
-  } : (req, res, next) => {
-    next();
-  };
-  this.after = after ? (req, res, json, key) => {
-    after(req, res, json, key, this.mongooseModels);
-  } : (req, res, json) => {
-    if (json) {
-      res.json(json);
-    } else {
-      res.send(null).end();
-    }
-  };
+    : (req, res, json) => {
+      if (json) {
+        res.json(json);
+      } else {
+        res.send(null).end();
+      }
+    };
 };
 
 Creator.prototype = {
   createDoc: function createDocfn(_doc) {
-    const doc = _.assign({
-      order: this.docOrder,
-    }, _doc);
+    const doc = _.assign(
+      {
+        order: this.docOrder,
+      },
+      _doc,
+    );
     const source = path.join(doc.dest, 'apicomment.js');
 
     if (fs.existsSync(source)) {
@@ -76,7 +95,10 @@ Creator.prototype = {
     });
 
     // apply patch for doc sample ajax
-    fs.copySync(path.join(__dirname, '../patch/send_sample_request.js'), path.join(doc.dest, 'utils/send_sample_request.js'));
+    fs.copySync(
+      path.join(__dirname, '../patch/send_sample_request.js'),
+      path.join(doc.dest, 'utils/send_sample_request.js'),
+    );
   },
 
   doc: function docfn(doc) {
@@ -88,34 +110,28 @@ Creator.prototype = {
     const getApiParam = () => {
       let params = [];
 
-      if (doc.method === 'post' ||
-          doc.collection ||
-          doc.validate) {
+      if (doc.method === 'post' || doc.collection || doc.validate) {
         params = params.concat(
           _.map(requestAttrs[doc.group], (attr, key) =>
-            (
-              attr.type === 'children' ? '' :
-              `@apiParam {${
-                attr.type === 'number' ? 'Number' :
-                attr.type === 'boolean' ? 'Boolean' : 'String'
+            (attr.type === 'children'
+              ? ''
+              : `@apiParam {${
+                attr.type === 'number' ? 'Number' : attr.type === 'boolean' ? 'Boolean' : 'String'
               }} ${[
-                (doc.create && (attr.required || attr.uniq) ? key : `[${key}]`),
-                (doc.create && attr.default ? `=${attr.default}` : ''),
-                (attr.desc ? attr.desc : attr.type === 'instance' ? `${attr.relation} id` : ''),
-              ].join(' ')}`
-            ),
+                doc.create && (attr.required || attr.uniq) ? key : `[${key}]`,
+                doc.create && attr.default ? `=${attr.default}` : '',
+                attr.desc ? attr.desc : attr.type === 'instance' ? `${attr.relation} id` : '',
+              ].join(' ')}`),
           ),
         );
       }
 
-      if (doc.method === 'get' &&
-          !doc.validate) {
+      if (doc.method === 'get' && !doc.validate) {
         params.push('@apiParam {String} [fields] Pertial attribution will be responsed.');
         params.push('Attributions should be separated with comma.');
       }
 
-      if (doc.method === 'get' &&
-          doc.collection) {
+      if (doc.method === 'get' && doc.collection) {
         params.push('@apiParam {String} [expands] Expand specified `parent`, `instance` fields.');
         params.push('`children` field could not expanded.');
         params.push('@apiParam {String} [orderBy] Specify sort order of fetched collection.');
@@ -123,52 +139,56 @@ Creator.prototype = {
       }
 
       if (doc.params) {
-        params = _.map(doc.params, (value, key) =>
-          `@apiParam {String} ${key} ${value}`,
-        );
+        params = _.map(doc.params, (value, key) => `@apiParam {String} ${key} ${value}`);
       }
       return params.join('\n * ');
     };
-    const apiSuccess = doc.response ?
-      _.map(doc.response, (value, key) =>
-        `@apiSuccess {String} ${key} ${value}`,
-      ) :
-      doc.method !== 'get' ? '' :
-      doc.collection ? [
-        '@apiSuccess {Number} offset',
-        '@apiSuccess {Number} limit',
-        '@apiSuccess {Number} size',
-        '@apiSuccess {String} first',
-        '@apiSuccess {String} last',
-        '@apiSuccess {String} prev',
-        '@apiSuccess {String} next',
-        `@apiSuccess {Object[]} items Array of ${group} instance`,
-      ].join('\n * ') :
-      _.map(mongooseSchemas[doc.group], (schema, key) => {
-        const attr = responseAttrs[doc.group][key] || {};
-        if (
-          doc.validate &&
-          (key === 'id' ||
-           key === 'createdAt' ||
-           key === 'updatedAt' ||
-           attr.type === 'children')
-        ) {
-          return '';
-        }
-        return `@apiSuccess {${
-          (attr.type === 'number' ? 'Number' :
-            attr.type === 'boolean' ? 'Boolean' :
-            attr.type === 'children' ? 'Object' :
-            attr.type === 'instance' ? 'Object' : 'String')
-        }} ${key} ${
-          (attr.desc ? attr.desc :
-            attr.type === 'children' ? `linking of ${attr.relation}` :
-            attr.type === 'instance' ? `linking of ${attr.relation}` : '')
-        }`;
-      }).join('\n * ');
-    const apiHeader = !doc.headers ? '' : _.map(doc.headers, (value, header) =>
-      `@apiHeader {String} ${header} ${value}`,
-    );
+    const apiSuccess = doc.response
+      ? _.map(doc.response, (value, key) => `@apiSuccess {String} ${key} ${value}`)
+      : doc.method !== 'get'
+        ? ''
+        : doc.collection
+          ? [
+            '@apiSuccess {Number} offset',
+            '@apiSuccess {Number} limit',
+            '@apiSuccess {Number} size',
+            '@apiSuccess {String} first',
+            '@apiSuccess {String} last',
+            '@apiSuccess {String} prev',
+            '@apiSuccess {String} next',
+            `@apiSuccess {Object[]} items Array of ${group} instance`,
+          ].join('\n * ')
+          : _.map(mongooseSchemas[doc.group], (schema, key) => {
+            const attr = responseAttrs[doc.group][key] || {};
+            if (
+              doc.validate &&
+            (key === 'id' || key === 'createdAt' || key === 'updatedAt' || attr.type === 'children')
+            ) {
+              return '';
+            }
+            return `@apiSuccess {${
+              attr.type === 'number'
+                ? 'Number'
+                : attr.type === 'boolean'
+                  ? 'Boolean'
+                  : attr.type === 'children'
+                    ? 'Object'
+                    : attr.type === 'instance'
+                      ? 'Object'
+                      : 'String'
+            }} ${key} ${
+              attr.desc
+                ? attr.desc
+                : attr.type === 'children'
+                  ? `linking of ${attr.relation}`
+                  : attr.type === 'instance'
+                    ? `linking of ${attr.relation}`
+                    : ''
+            }`;
+          }).join('\n * ');
+    const apiHeader = !doc.headers
+      ? ''
+      : _.map(doc.headers, (value, header) => `@apiHeader {String} ${header} ${value}`);
 
     this.docs.push(
       `
@@ -186,22 +206,32 @@ Creator.prototype = {
 
   model: function modelFn(key, _attrs) {
     const schemaType = {};
-    const attrs = _.assign({
-      id: {},
-    }, _attrs, {
-      createdAt: {
-        type: 'date',
+    const attrs = _.assign(
+      {
+        id: {},
       },
-      updatedAt: {
-        type: 'date',
+      _attrs,
+      {
+        createdAt: {
+          type: 'date',
+        },
+        updatedAt: {
+          type: 'date',
+        },
       },
-    });
+    );
 
     _.each(attrs, (attr, name) => {
-      const type = attr.type === 'number' ? Number :
-        attr.type === 'boolean' ? Boolean :
-        attr.type === 'date' ? Date :
-        attr.type === 'children' ? Array : String;
+      const type =
+        attr.type === 'number'
+          ? Number
+          : attr.type === 'boolean'
+            ? Boolean
+            : attr.type === 'date'
+              ? Date
+              : attr.type === 'children'
+                ? Array
+                : String;
 
       schemaType[name] = {
         type,
@@ -209,9 +239,15 @@ Creator.prototype = {
       };
     });
 
-    const schema = new this.mongoose.Schema(_.assign({
-      q: String,
-    }, schemaType), { minimize: false });
+    const schema = new this.mongoose.Schema(
+      _.assign(
+        {
+          q: String,
+        },
+        schemaType,
+      ),
+      { minimize: false },
+    );
     schema.index({ id: 1 });
 
     const model = this.mongoose.model((this.prefix + key).replace(/\//g, '_'), schema);
@@ -235,29 +271,27 @@ Creator.prototype = {
   },
 
   fields: function fieldsFn(key, params) {
-    const fields = _.map(params || this.mongooseSchemas[key], (attr, name) =>
-      name,
-    ).join(' ');
+    const fields = _.map(params || this.mongooseSchemas[key], (attr, name) => name).join(' ');
     return `${fields} -_id`;
   },
 
   params: function paramsFn(model, req) {
     const params = {};
     _.map(model, (option, key) => {
-      let value = req.body[key] !== undefined ? req.body[key] :
-        req.params[key] !== undefined ? req.params[key] :
-        req.query[key] !== undefined &&
-        req.query[key] !== null &&
-        req.query[key] !== '' ? req.query[key] : undefined;
+      let value =
+        req.body[key] !== undefined
+          ? req.body[key]
+          : req.params[key] !== undefined
+            ? req.params[key]
+            : req.query[key] !== undefined && req.query[key] !== null && req.query[key] !== ''
+              ? req.query[key]
+              : undefined;
 
       if (option.type === 'children') {
         value = value !== undefined ? value : [];
       }
 
-      if (
-        _.isArray(value) ? value.length :
-        value !== undefined
-      ) {
+      if (_.isArray(value) ? value.length : value !== undefined) {
         params[key] = value;
       }
     });
@@ -273,21 +307,25 @@ Creator.prototype = {
       const search = type === 'number' || type === 'date' ? 'range' : 'wildcard';
 
       const val = _val && _val.length ? _val : '';
-      cond[key] = search === 'wildcard' && /\*/.test(val) ?
-        new RegExp(`^${
-          val.replace(/\[/g, '\\[')
-            .replace(/\]/g, '\\]')
-            .replace(/\./g, '\\.')
-            .replace(/\*/g, '.*')
-        }$`) :
-        search === 'range' && /^\[.+,.+\]$/.test(val) ?
-          {
-            $gte: val.match(/^\[(.+),(.+)\]$/)[1],
-            $lte: val.match(/^\[(.+),(.+)\]$/)[2],
-          } :
-          /,/.test(val) ? {
-            $in: val.split(','),
-          } : val;
+      cond[key] =
+        search === 'wildcard' && /\*/.test(val)
+          ? new RegExp(
+            `^${val
+              .replace(/\[/g, '\\[')
+              .replace(/\]/g, '\\]')
+              .replace(/\./g, '\\.')
+              .replace(/\*/g, '.*')}$`,
+          )
+          : search === 'range' && /^\[.+,.+\]$/.test(val)
+            ? {
+              $gte: val.match(/^\[(.+),(.+)\]$/)[1],
+              $lte: val.match(/^\[(.+),(.+)\]$/)[2],
+            }
+            : /,/.test(val)
+              ? {
+                $in: val.split(','),
+              }
+              : val;
     });
 
     if (req.query.q) {
@@ -297,107 +335,127 @@ Creator.prototype = {
   },
 
   toObject: function toObjectFn(collection) {
-    return _.map(collection, instance =>
-      (instance.toObject ? instance.toObject() : instance),
-    );
+    return _.map(collection, instance => (instance.toObject ? instance.toObject() : instance));
   },
 
   makeRelation: function makeRelationFn(model, collectionKey, _collection, expands, callback) {
     const prefix = this.prefix;
     const collection = this.toObject(_collection);
-    async.map(Object.keys(model), (key, modelCallback) => {
-      const option = model[key];
+    async.map(
+      Object.keys(model),
+      (key, modelCallback) => {
+        const option = model[key];
 
-      switch (option.type) {
-      case 'children':
-        collection.forEach((instance) => {
-          if (instance.hasOwnProperty(key)) {
-            // eslint-disable-next-line no-param-reassign
-            instance[key] = {
-              href: `${prefix}/${collectionKey}/${instance.id}/${key}`,
-            };
-          }
-        });
-        modelCallback();
-        break;
-      case 'parent':
-        async.map(collection, (instance, collectionCallback) => {
-          if (instance.hasOwnProperty(key)) {
-            const instanceKey = option.relation.split('.')[0];
-            const parentCollectionKey = pluralize(instanceKey);
-            if (expands.includes(key)) {
-              this.mongooseModels[instanceKey].findOne({
-                id: instance[key],
-              }, this.fields(instanceKey), (err, res) => {
-                this.makeRelation(
-                  this.schemas[instanceKey],
-                  parentCollectionKey,
-                  [res],
-                  [],
-                  (parentCollection) => {
-                    // eslint-disable-next-line no-param-reassign
-                    instance[key] = parentCollection[0];
-                    collectionCallback();
-                  },
-                );
-              });
-            } else {
+        switch (option.type) {
+        case 'children':
+          collection.forEach((instance) => {
+            if (instance.hasOwnProperty(key)) {
               // eslint-disable-next-line no-param-reassign
               instance[key] = {
-                href: `${prefix}/${parentCollectionKey}/${instance[key]}`,
-                id: instance[key],
+                href: `${prefix}/${collectionKey}/${instance.id}/${key}`,
               };
-              collectionCallback();
             }
-          } else {
-            collectionCallback();
-          }
-        }, () => {
+          });
           modelCallback();
-        });
-        break;
-      case 'instance':
-        async.map(collection, (instance, collectionCallback) => {
-          if (instance.hasOwnProperty(key)) {
-            const instanceKey = option.relation;
-            const parentCollectionKey = pluralize(instanceKey);
-            if (expands.includes(key)) {
-              this.mongooseModels[instanceKey].findOne({
-                id: instance[key],
-              }, this.fields(instanceKey), (err, res) => {
-                this.makeRelation(
-                  this.schemas[instanceKey],
-                  parentCollectionKey,
-                  [res],
-                  [],
-                  (instanceCollection) => {
-                    // eslint-disable-next-line no-param-reassign
-                    instance[key] = instanceCollection[0];
-                    collectionCallback();
-                  },
-                );
-              });
-            } else {
-              // eslint-disable-next-line no-param-reassign
-              instance[key] = {
-                href: instance[key] ? `${prefix}/${pluralize(instanceKey)}/${instance[key]}` : null,
-                id: instance[key],
-              };
-              collectionCallback();
-            }
-          } else {
-            collectionCallback();
-          }
-        }, () => {
+          break;
+        case 'parent':
+          async.map(
+            collection,
+            (instance, collectionCallback) => {
+              if (instance.hasOwnProperty(key)) {
+                const instanceKey = option.relation.split('.')[0];
+                const parentCollectionKey = pluralize(instanceKey);
+                if (expands.includes(key)) {
+                  this.mongooseModels[instanceKey].findOne(
+                    {
+                      id: instance[key],
+                    },
+                    this.fields(instanceKey),
+                    (err, res) => {
+                      this.makeRelation(
+                        this.schemas[instanceKey],
+                        parentCollectionKey,
+                        [res],
+                        [],
+                        (parentCollection) => {
+                          // eslint-disable-next-line no-param-reassign
+                          instance[key] = parentCollection[0];
+                          collectionCallback();
+                        },
+                      );
+                    },
+                  );
+                } else {
+                  // eslint-disable-next-line no-param-reassign
+                  instance[key] = {
+                    href: `${prefix}/${parentCollectionKey}/${instance[key]}`,
+                    id: instance[key],
+                  };
+                  collectionCallback();
+                }
+              } else {
+                collectionCallback();
+              }
+            },
+            () => {
+              modelCallback();
+            },
+          );
+          break;
+        case 'instance':
+          async.map(
+            collection,
+            (instance, collectionCallback) => {
+              if (instance.hasOwnProperty(key)) {
+                const instanceKey = option.relation;
+                const parentCollectionKey = pluralize(instanceKey);
+                if (expands.includes(key)) {
+                  this.mongooseModels[instanceKey].findOne(
+                    {
+                      id: instance[key],
+                    },
+                    this.fields(instanceKey),
+                    (err, res) => {
+                      this.makeRelation(
+                        this.schemas[instanceKey],
+                        parentCollectionKey,
+                        [res],
+                        [],
+                        (instanceCollection) => {
+                          // eslint-disable-next-line no-param-reassign
+                          instance[key] = instanceCollection[0];
+                          collectionCallback();
+                        },
+                      );
+                    },
+                  );
+                } else {
+                  // eslint-disable-next-line no-param-reassign
+                  instance[key] = {
+                    href: instance[key]
+                      ? `${prefix}/${pluralize(instanceKey)}/${instance[key]}`
+                      : null,
+                    id: instance[key],
+                  };
+                  collectionCallback();
+                }
+              } else {
+                collectionCallback();
+              }
+            },
+            () => {
+              modelCallback();
+            },
+          );
+          break;
+        default:
           modelCallback();
-        });
-        break;
-      default:
-        modelCallback();
-      }
-    }, () => {
-      callback(collection);
-    });
+        }
+      },
+      () => {
+        callback(collection);
+      },
+    );
   },
 
   validateRelatedDataExistance: function validateRelatedDataExistanceFn(req, schema) {
@@ -413,20 +471,25 @@ Creator.prototype = {
       }
       const id = req.body[name];
       if (key && id) {
-        process.push(
-          (callback) => {
-            this.mongooseModels[key].findOne({
+        process.push((callback) => {
+          this.mongooseModels[key].findOne(
+            {
               id,
-            }, (err, instance) => {
-              callback(!instance ? {
-                err: {
-                  [name]: `Specified ID (${id}) does not exists in ${key}`,
-                },
-                code: 400,
-              } : err);
-            });
-          },
-        );
+            },
+            (err, instance) => {
+              callback(
+                !instance
+                  ? {
+                    err: {
+                      [name]: `Specified ID (${id}) does not exists in ${key}`,
+                    },
+                    code: 400,
+                  }
+                  : err,
+              );
+            },
+          );
+        });
       }
     });
     return process;
@@ -439,29 +502,31 @@ Creator.prototype = {
         const key = attr.relation.split('.')[0];
         const child = attr.relation.split('.')[1];
 
-        process.push(
-          (callback) => {
-            model.findOne({
+        process.push((callback) => {
+          model.findOne(
+            {
               id: req.body[key],
-            }, (err, parent) => {
+            },
+            (err, parent) => {
               callback(err, parent);
-            });
-          });
-        process.push(
-          (parent, callback) => {
-            if (parent) {
-              const now = moment().format();
+            },
+          );
+        });
+        process.push((parent, callback) => {
+          if (parent) {
+            const now = moment().format();
+            if (parent[child]) {
               parent[child].push(undefined); // TODO Confirm the logic is need or not.
-              // eslint-disable-next-line no-param-reassign
-              parent.updatedAt = now;
-              parent.save((err) => {
-                callback(err);
-              });
-            } else {
-              callback(null);
             }
-          },
-        );
+            // eslint-disable-next-line no-param-reassign
+            parent.updatedAt = now;
+            parent.save((err) => {
+              callback(err);
+            });
+          } else {
+            callback(null);
+          }
+        });
       }
     });
     return process;
@@ -505,7 +570,10 @@ Creator.prototype = {
       },
       (req, res, next) => {
         if (req.headers['x-json-schema'] === 'true') {
-          res.status(200).json(schemefy(prefix, key, model)).end();
+          res
+            .status(200)
+            .json(schemefy(prefix, key, model))
+            .end();
         } else {
           next();
         }
@@ -517,57 +585,77 @@ Creator.prototype = {
         const prev = offset - limit;
         const next = offset + limit;
 
-        async.waterfall([
-          (callback) => {
-            const reqFields = req.query.fields;
+        async.waterfall(
+          [
+            (callback) => {
+              const reqFields = req.query.fields;
 
-            this.mongooseModels[key].find(cond, reqFields ? `${reqFields.replace(/,/g, ' ')} -_id` : fields, {
-              skip: offset,
-              limit,
-              sort: this.parseOrder(req.query.orderBy),
-            }, (err, collection) => {
-              callback(err, collection);
-            });
-          },
-          (collection, callback) => {
-            this.mongooseModels[key].count(cond, (err, size) => {
-              callback(err, collection, size);
-            });
-          },
-        ], (err, collection, size) => {
-          if (err) {
-            resutils.error(res, err);
-            return;
-          }
-
-          this.makeRelation(
-            model,
-            keys,
-            collection,
-            (req.query.expands || '').split(','),
-            (items) => {
-              after(req, res, {
-                offset,
-                limit,
-                size,
-                first: size ? `${prefix}/${keys}?offset=0&limit=${limit}` : null,
-                last: size ? `${prefix}/${keys}?offset=${((Math.ceil(size / limit) - 1) * limit)}&limit=${limit}` : null,
-                prev: size && offset !== 0 ? `${prefix}/${keys}?offset=${(prev < 0 ? 0 : prev)}&limit=${limit}` : null,
-                next: size && next < size ? `${prefix}/${keys}?offset=${next}&limit=${limit}` : null,
-                items,
-              }, key);
+              this.mongooseModels[key].find(
+                cond,
+                reqFields ? `${reqFields.replace(/,/g, ' ')} -_id` : fields,
+                {
+                  skip: offset,
+                  limit,
+                  sort: this.parseOrder(req.query.orderBy),
+                },
+                (err, collection) => {
+                  callback(err, collection);
+                },
+              );
             },
-          );
-        });
+            (collection, callback) => {
+              this.mongooseModels[key].count(cond, (err, size) => {
+                callback(err, collection, size);
+              });
+            },
+          ],
+          (err, collection, size) => {
+            if (err) {
+              resutils.error(res, err);
+              return;
+            }
+
+            this.makeRelation(
+              model,
+              keys,
+              collection,
+              (req.query.expands || '').split(','),
+              (items) => {
+                after(
+                  req,
+                  res,
+                  {
+                    offset,
+                    limit,
+                    size,
+                    first: size ? `${prefix}/${keys}?offset=0&limit=${limit}` : null,
+                    last: size
+                      ? `${prefix}/${keys}?offset=${(Math.ceil(size / limit) - 1) *
+                          limit}&limit=${limit}`
+                      : null,
+                    prev:
+                      size && offset !== 0
+                        ? `${prefix}/${keys}?offset=${prev < 0 ? 0 : prev}&limit=${limit}`
+                        : null,
+                    next:
+                      size && next < size
+                        ? `${prefix}/${keys}?offset=${next}&limit=${limit}`
+                        : null,
+                    items,
+                  },
+                  key,
+                );
+              },
+            );
+          },
+        );
       },
     );
   },
 
   getUniqKeys: function getUniqKeysFn(model) {
     return _.chain(model)
-      .map((value, key) =>
-        (value.uniq ? key : undefined),
-      )
+      .map((value, key) => (value.uniq ? key : undefined))
       .compact()
       .value();
   },
@@ -616,29 +704,30 @@ Creator.prototype = {
               body,
             };
             process.push(...this.validateRelatedDataExistance(reqInstance, model));
-            process.push(
-              (callback) => {
-                const params = this.params(model, reqInstance);
-                const results = validate(model, params);
-                if (!results.ok) {
-                  callback({
-                    err: {
-                      index,
-                      ...results,
-                    },
-                    code: 400,
-                  });
-                } else {
-                  callback();
-                }
-              },
-            );
+            process.push((callback) => {
+              const params = this.params(model, reqInstance);
+              const results = validate(model, params);
+              if (!results.ok) {
+                callback({
+                  err: {
+                    index,
+                    ...results,
+                  },
+                  code: 400,
+                });
+              } else {
+                callback();
+              }
+            });
           });
           async.waterfall(process, (err) => {
             if (err) {
               resutils.error(res, err);
             } else {
-              res.status(200).json({}).end();
+              res
+                .status(200)
+                .json({})
+                .end();
             }
           });
         } else {
@@ -648,9 +737,7 @@ Creator.prototype = {
       (req, res) => {
         const uniqKeys = this.getUniqKeys(model);
         const texts = _.chain(model)
-          .map((value, _key) =>
-            (value.text ? _key : undefined),
-          )
+          .map((value, _key) => (value.text ? _key : undefined))
           .compact()
           .value();
         const process = [];
@@ -663,19 +750,17 @@ Creator.prototype = {
             body,
           });
 
-          process.push(
-            (_callback) => {
-              const results = validate(model, params);
-              if (!results.ok) {
-                _callback({
-                  err: results,
-                  code: 400,
-                });
-              } else {
-                _callback();
-              }
-            },
-          );
+          process.push((_callback) => {
+            const results = validate(model, params);
+            if (!results.ok) {
+              _callback({
+                err: results,
+                code: 400,
+              });
+            } else {
+              _callback();
+            }
+          });
         });
 
         (req.body.items ? req.body.items : [req.body]).forEach((body) => {
@@ -686,38 +771,48 @@ Creator.prototype = {
             body,
           });
 
-          process.push(
-            (_callback) => {
-              const md5 = crypto.createHash('md5');
-              if (uniqKeys.length === 1) {
-                const val = params[uniqKeys[0]];
-                id = String(val || '').replace(/[\s./]+/g, '_').toLowerCase();
-                if (!/^[a-z_0-9-]+$/.test(id)) {
-                  md5.update(id);
-                  id = md5.digest('hex').substr(0, 7);
-                }
-              } else if (uniqKeys.length) {
-                md5.update(uniqKeys.map((uniqKey) => {
-                  const val = params[uniqKey];
-                  return String(val != null ? val : '').replace(/[\s./]+/g, '_').toLowerCase();
-                }).join('-'));
-                id = md5.digest('hex').substr(0, 7);
-              } else {
-                md5.update(`${new Date().getTime()}:${Math.random()}`);
+          process.push((_callback) => {
+            const md5 = crypto.createHash('md5');
+            if (uniqKeys.length === 1) {
+              const val = params[uniqKeys[0]];
+              id = String(val || '')
+                .replace(/[\s./]+/g, '_')
+                .toLowerCase();
+              if (!/^[a-z_0-9-]+$/.test(id)) {
+                md5.update(id);
                 id = md5.digest('hex').substr(0, 7);
               }
-              ids.push(id);
-              _callback();
-            },
-          );
+            } else if (uniqKeys.length) {
+              md5.update(
+                uniqKeys
+                  .map((uniqKey) => {
+                    const val = params[uniqKey];
+                    return String(val != null ? val : '')
+                      .replace(/[\s./]+/g, '_')
+                      .toLowerCase();
+                  })
+                  .join('-'),
+              );
+              id = md5.digest('hex').substr(0, 7);
+            } else {
+              md5.update(`${new Date().getTime()}:${Math.random()}`);
+              id = md5.digest('hex').substr(0, 7);
+            }
+            ids.push(id);
+            _callback();
+          });
 
           // Confirm duplicated data existance
           process.push((_callback) => {
             this.mongooseModels[key].findOne({ id }, (err, instance) => {
-              _callback(instance ? {
-                message: 'Duplicate id exists',
-                code: 409,
-              } : null);
+              _callback(
+                instance
+                  ? {
+                    message: 'Duplicate id exists',
+                    code: 409,
+                  }
+                  : null,
+              );
             });
           });
 
@@ -725,34 +820,36 @@ Creator.prototype = {
           process.push(...this.validateRelatedDataExistance(req, model));
 
           // Push key onto parent object
-          process.push(
-            ...this.getProcessUpdateParent(req, model, this.mongooseModels[key]),
-          );
+          process.push(...this.getProcessUpdateParent(req, model, this.mongooseModels[key]));
 
-          process.push(
-            (_callback) => {
-              const text = texts.map(textString =>
-                params[textString],
-              ).join(' ');
-              const now = moment().format();
-              const Model = this.mongooseModels[key];
-              const instance = new Model(
-                _.assign({
+          process.push((_callback) => {
+            const text = texts.map(textString => params[textString]).join(' ');
+            const now = moment().format();
+            const Model = this.mongooseModels[key];
+            const instance = new Model(
+              _.assign(
+                {
                   id,
-                }, params, {
+                },
+                params,
+                {
                   q: text,
                   createdAt: now,
                   updatedAt: now,
-                }),
-              );
+                },
+              ),
+            );
 
-              instance.save((err) => {
-                _callback(err ? {
-                  err,
-                } : null);
-              });
-            },
-          );
+            instance.save((err) => {
+              _callback(
+                err
+                  ? {
+                    err,
+                  }
+                  : null,
+              );
+            });
+          });
         });
 
         async.waterfall(process, (err) => {
@@ -762,19 +859,29 @@ Creator.prototype = {
           }
           if (req.body.items) {
             res.status(201);
-            after(req, res, {
-              items: ids.map(id => ({
-                id,
-                href: `${prefix}/${keys}/${id}`,
-              })),
-            }, key);
+            after(
+              req,
+              res,
+              {
+                items: ids.map(id => ({
+                  id,
+                  href: `${prefix}/${keys}/${id}`,
+                })),
+              },
+              key,
+            );
           } else {
             const href = `${prefix}/${keys}/${ids[0]}`;
             res.status(201).location(href);
-            after(req, res, {
-              id: ids[0],
-              href,
-            }, key);
+            after(
+              req,
+              res,
+              {
+                id: ids[0],
+                href,
+              },
+              key,
+            );
           }
         });
       },
@@ -808,37 +915,49 @@ Creator.prototype = {
       (req, res) => {
         const id = req.params.id;
 
-        async.waterfall([
-          (callback) => {
-            const reqFields = req.query.fields;
+        async.waterfall(
+          [
+            (callback) => {
+              const reqFields = req.query.fields;
 
-            this.mongooseModels[key].findOne({
-              id,
-            }, reqFields ? `${reqFields.replace(/,/g, ' ')} -_id` : fields, (err, instance) => {
-              callback(!instance ? {
-                err: {
-                  id: `Specified ID (${id}) does not exists in ${key}`,
+              this.mongooseModels[key].findOne(
+                {
+                  id,
                 },
-                code: 404,
-              } : err, instance || {});
-            });
-          },
-        ], (err, instance) => {
-          if (err) {
-            resutils.error(res, err);
-            return;
-          }
-
-          this.makeRelation(
-            model,
-            keys,
-            [instance],
-            (req.query.expands || '').split(','),
-            (instanceCollection) => {
-              after(req, res, instanceCollection[0], key);
+                reqFields ? `${reqFields.replace(/,/g, ' ')} -_id` : fields,
+                (err, instance) => {
+                  callback(
+                    !instance
+                      ? {
+                        err: {
+                          id: `Specified ID (${id}) does not exists in ${key}`,
+                        },
+                        code: 404,
+                      }
+                      : err,
+                    instance || {},
+                  );
+                },
+              );
             },
-          );
-        });
+          ],
+          (err, instance) => {
+            if (err) {
+              resutils.error(res, err);
+              return;
+            }
+
+            this.makeRelation(
+              model,
+              keys,
+              [instance],
+              (req.query.expands || '').split(','),
+              (instanceCollection) => {
+                after(req, res, instanceCollection[0], key);
+              },
+            );
+          },
+        );
       },
     );
   },
@@ -886,42 +1005,75 @@ Creator.prototype = {
         delete cond.id;
         cond[parentKey] = id;
 
-        async.waterfall([
-          (callback) => {
-            const reqFields = req.query.fields;
+        async.waterfall(
+          [
+            (callback) => {
+              const reqFields = req.query.fields;
 
-            this.mongooseModels[attr.relation].find(cond, reqFields ? `${reqFields.replace(/,/g, ' ')} -_id` : fields, {
-              skip: offset,
-              limit,
-              sort: this.parseOrder(req.query.orderBy),
-            }, (err, collection) => {
-              callback(err, collection);
-            });
-          },
-          (collection, callback) => {
-            this.mongooseModels[attr.relation].count(cond, (err, size) => {
-              callback(err, collection, size);
-            });
-          },
-        ], (err, collection, size) => {
-          if (err) {
-            resutils.error(res, err);
-            return;
-          }
+              this.mongooseModels[attr.relation].find(
+                cond,
+                reqFields ? `${reqFields.replace(/,/g, ' ')} -_id` : fields,
+                {
+                  skip: offset,
+                  limit,
+                  sort: this.parseOrder(req.query.orderBy),
+                },
+                (err, collection) => {
+                  callback(err, collection);
+                },
+              );
+            },
+            (collection, callback) => {
+              this.mongooseModels[attr.relation].count(cond, (err, size) => {
+                callback(err, collection, size);
+              });
+            },
+          ],
+          (err, collection, size) => {
+            if (err) {
+              resutils.error(res, err);
+              return;
+            }
 
-          this.makeRelation(model, keys, collection, (req.query.expands || '').split(','), (items) => {
-            after(req, res, {
-              offset,
-              limit,
-              size,
-              first: size ? `${prefix}/${parentKeys}/${id}/${key}?offset=0&limit=${limit}` : null,
-              last: size ? `${prefix}/${parentKeys}/${id}/${key}?offset=${((Math.ceil(size / limit) - 1) * limit)}&limit=${limit}` : null,
-              prev: size && offset !== 0 ? `${prefix}/${parentKeys}/${id}/${key}?offset=${(prev < 0 ? 0 : prev)}&limit=${limit}` : null,
-              next: size && next < size ? `${prefix}/${parentKeys}/${id}/${key}?offset=${next}&limit=${limit}` : null,
-              items,
-            }, key);
-          });
-        });
+            this.makeRelation(
+              model,
+              keys,
+              collection,
+              (req.query.expands || '').split(','),
+              (items) => {
+                after(
+                  req,
+                  res,
+                  {
+                    offset,
+                    limit,
+                    size,
+                    first: size
+                      ? `${prefix}/${parentKeys}/${id}/${key}?offset=0&limit=${limit}`
+                      : null,
+                    last: size
+                      ? `${prefix}/${parentKeys}/${id}/${key}?offset=${(Math.ceil(size / limit) -
+                          1) *
+                          limit}&limit=${limit}`
+                      : null,
+                    prev:
+                      size && offset !== 0
+                        ? `${prefix}/${parentKeys}/${id}/${key}?offset=${
+                          prev < 0 ? 0 : prev
+                        }&limit=${limit}`
+                        : null,
+                    next:
+                      size && next < size
+                        ? `${prefix}/${parentKeys}/${id}/${key}?offset=${next}&limit=${limit}`
+                        : null,
+                    items,
+                  },
+                  key,
+                );
+              },
+            );
+          },
+        );
       },
     );
   },
@@ -965,10 +1117,7 @@ Creator.prototype = {
       },
       (req, res) => {
         const params = this.params(model, req);
-        const results = [
-          this.validatePermission(model, params),
-          validate(model, params, true),
-        ];
+        const results = [this.validatePermission(model, params), validate(model, params, true)];
         let isValid = true;
 
         results.forEach((result) => {
@@ -984,19 +1133,26 @@ Creator.prototype = {
 
         async.waterfall(
           // Confirm parent, instance data existance
-          this.validateRelatedDataExistance(req, model).concat([
-            (callback) => {
-              const now = moment().format();
+          this.validateRelatedDataExistance(req, model)
+            .concat([
+              (callback) => {
+                const now = moment().format();
 
-              this.mongooseModels[key].findOneAndUpdate({
-                id: req.params.id,
-              }, _.assign(params, {
-                updatedAt: now,
-              }), (err) => {
-                callback(err);
-              });
-            },
-          ]).concat(this.getProcessUpdateParent(req, model, this.mongooseModels[key])), (err) => {
+                this.mongooseModels[key].findOneAndUpdate(
+                  {
+                    id: req.params.id,
+                  },
+                  _.assign(params, {
+                    updatedAt: now,
+                  }),
+                  (err) => {
+                    callback(err);
+                  },
+                );
+              },
+            ])
+            .concat(this.getProcessUpdateParent(req, model, this.mongooseModels[key])),
+          (err) => {
             if (err) {
               resutils.error(res, err);
               return;
@@ -1034,27 +1190,34 @@ Creator.prototype = {
         before(req, res, next, key);
       },
       (req, res) => {
-        async.waterfall([
-          (callback) => {
-            const cond = this.cond(model, req);
+        async.waterfall(
+          [
+            (callback) => {
+              const cond = this.cond(model, req);
 
-            this.mongooseModels[key].find(cond, (findErr, collection) => {
-              async.map(collection, (instance, modelCallback) => {
-                instance.remove((err) => {
-                  modelCallback(err);
-                });
-              }, (err) => {
-                callback(err);
+              this.mongooseModels[key].find(cond, (findErr, collection) => {
+                async.map(
+                  collection,
+                  (instance, modelCallback) => {
+                    instance.remove((err) => {
+                      modelCallback(err);
+                    });
+                  },
+                  (err) => {
+                    callback(err);
+                  },
+                );
               });
-            });
+            },
+          ],
+          (err) => {
+            if (err) {
+              resutils.error(res, err);
+              return;
+            }
+            after(req, res, null, key);
           },
-        ], (err) => {
-          if (err) {
-            resutils.error(res, err);
-            return;
-          }
-          after(req, res, null, key);
-        });
+        );
       },
     );
   },
@@ -1082,36 +1245,39 @@ Creator.prototype = {
         before(req, res, next, key);
       },
       (req, res) => {
-        async.waterfall([
-          (callback) => {
-            this.mongooseModels[key].findOneAndRemove({
-              id: req.params.id,
-            }, (err) => {
-              callback(err);
-            });
+        async.waterfall(
+          [
+            (callback) => {
+              this.mongooseModels[key].findOneAndRemove(
+                {
+                  id: req.params.id,
+                },
+                (err) => {
+                  callback(err);
+                },
+              );
+            },
+          ],
+          (err) => {
+            if (err) {
+              resutils.error(res, err);
+              return;
+            }
+            after(req, res, null, key);
           },
-        ], (err) => {
-          if (err) {
-            resutils.error(res, err);
-            return;
-          }
-          after(req, res, null, key);
-        });
+        );
       },
     );
   },
 
   unroute: function unrouteFn() {
     const router = this.router;
-    const paths = router.stack.map(layer =>
-      layer.route.path,
-    );
+    const paths = router.stack.map(layer => layer.route.path);
 
     _.uniq(paths).forEach((routePath) => {
       unroute.remove(router, routePath);
     });
   },
-
 };
 
 module.exports = Creator;
