@@ -6,6 +6,8 @@ import async from 'async';
 import request from 'supertest';
 import Creator from '../src/creator';
 
+mongoose.Promise = Promise;
+
 const app = express();
 const router = express.Router();
 const schema = {
@@ -61,7 +63,12 @@ let creator;
 
 describe('Creator Unroute', () => {
   before(() => {
-    mongoose.connect(process.env.MONGO_URL);
+    mongoose.connect(
+      process.env.MONGO_URL,
+      {
+        useMongoClient: true,
+      },
+    );
     mongoose.models = {};
     mongoose.modelSchemas = {};
     creator = new Creator({ mongoose, router, prefix: '/api' });
@@ -71,7 +78,12 @@ describe('Creator Unroute', () => {
     creator.model('company', schema.company);
     creator.getInstance('company', schema.company);
     creator.getCollection('company', schema.company);
-    creator.getChildren('company', { type: 'children', relation: 'person' }, 'members', schema.person);
+    creator.getChildren(
+      'company',
+      { type: 'children', relation: 'person' },
+      'members',
+      schema.person,
+    );
     creator.postInstanceOrCollection('company', schema.company);
     creator.deleteCollection('company', schema.company);
 
@@ -94,18 +106,21 @@ describe('Creator Unroute', () => {
 
   it('should unroute router', (done) => {
     creator.unroute();
-    async.waterfall([
-      (callback) => {
-        request(app)
-          .get('/api/companies')
-          .expect(404)
-          .end((err) => {
-            should.not.exist(err);
-            callback();
-          });
+    async.waterfall(
+      [
+        (callback) => {
+          request(app)
+            .get('/api/companies')
+            .expect(404)
+            .end((err) => {
+              should.not.exist(err);
+              callback();
+            });
+        },
+      ],
+      (err) => {
+        done(err);
       },
-    ], (err) => {
-      done(err);
-    });
+    );
   });
 });
