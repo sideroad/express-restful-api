@@ -14,10 +14,10 @@ module.exports = {
       const attr = model[key];
       json.properties[key] = {};
       if (
-        !attr.type ||
-        attr.type === 'number' ||
-        attr.type === 'boolean' ||
-        attr.type === 'string'
+        !attr.type
+        || attr.type === 'number'
+        || attr.type === 'boolean'
+        || attr.type === 'string'
       ) {
         json.properties[key].type = attr.type || 'string';
       }
@@ -52,7 +52,7 @@ module.exports = {
       model: {},
       key: json.title
     };
-    const properties = json.properties;
+    const { properties } = json;
     Object.keys(properties).forEach((property) => {
       const val = properties[property];
       scheme.model[property] = {};

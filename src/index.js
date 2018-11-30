@@ -6,12 +6,7 @@ import Creator from './creator';
 module.exports = {
   router: function routerFn(options) {
     const router = express.Router();
-    const schemas = options.schemas;
-    const prefix = options.prefix;
-    const before = options.before;
-    const after = options.after;
-    const client = options.client;
-    const secret = options.secret;
+    const { schemas, prefix, before, after, client, secret } = options;
     const applyChildren = (creator, key, schema, model) => {
       _.each(model, (attr, childKey) => {
         if (attr.type === 'children') {
