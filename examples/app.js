@@ -18,16 +18,16 @@ var router = creator.router({
         required: true,
         pattern: /^[a-zA-Z _]+$/,
         desc: 'Company name',
-        invalid: 'Only alphabets number spaces allowed',
+        invalid: 'Only alphabets number spaces allowed'
       },
       president: {
         type: 'instance',
-        relation: 'persion',
+        relation: 'persion'
       },
       members: {
         type: 'children',
-        relation: 'person',
-      },
+        relation: 'person'
+      }
     },
 
     // register person model
@@ -37,17 +37,17 @@ var router = creator.router({
         uniq: true,
         required: true,
         pattern: /^[a-zA-Z _]+$/,
-        resoure: 'id',
+        resoure: 'id'
       },
       company: {
         type: 'parent',
-        relation: 'company.members',
+        relation: 'company.members'
       },
       age: {
-        type: 'number',
-      },
-    },
-  },
+        type: 'number'
+      }
+    }
+  }
 });
 
 app.use('/', router);
