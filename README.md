@@ -33,7 +33,7 @@ app.use('/', creator.router({
       },
       president: {
         type: 'instance',
-        relation: 'persion'
+        relation: 'person'
       },
       members: {
         type: 'children',

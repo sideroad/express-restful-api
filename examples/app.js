@@ -22,7 +22,7 @@ var router = creator.router({
       },
       president: {
         type: 'instance',
-        relation: 'persion'
+        relation: 'person'
       },
       members: {
         type: 'children',
