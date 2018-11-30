@@ -72,7 +72,7 @@ creator.doc({
     "withGenerator": true,
     "jQueryAjaxSetup": {
       xhrFields: {
-         withCredentials: true
+        withCredentials: true
       }
     }
   },
