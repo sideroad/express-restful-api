@@ -21,14 +21,17 @@ module.exports = {
     };
 
     const creator = new Creator({
-      mongoose: typeof options.mongo === 'string' ? mongoose.connect(options.mongo) || mongoose : options.mongo,
+      mongoose:
+        typeof options.mongo === 'string'
+          ? mongoose.connect(options.mongo) || mongoose
+          : options.mongo,
       router,
       prefix,
       before,
       after,
       client,
       secret,
-      schemas,
+      schemas
     });
 
     Object.keys(schemas).forEach((key) => {
@@ -52,5 +55,5 @@ module.exports = {
   },
   destroy: function destroyFn() {
     this.creator.unroute();
-  },
+  }
 };

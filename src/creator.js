@@ -20,7 +20,7 @@ const Creator = function constructor({
   after,
   client,
   secret,
-  schemas,
+  schemas
 }) {
   this.mongoose = mongoose;
   this.mongooseModels = {};
@@ -43,7 +43,7 @@ const Creator = function constructor({
         } else {
           resutils.error(res, {
             code: 400,
-            message: 'x-chaus-secret and / or x-chaus-client header are invalid',
+            message: 'x-chaus-secret and / or x-chaus-client header are invalid'
           });
         }
       }
@@ -74,9 +74,9 @@ Creator.prototype = {
   createDoc: function createDocfn(_doc) {
     const doc = _.assign(
       {
-        order: this.docOrder,
+        order: this.docOrder
       },
-      _doc,
+      _doc
     );
     const source = path.join(doc.dest, 'apicomment.js');
 
@@ -91,13 +91,13 @@ Creator.prototype = {
     apidoc.createDoc({
       src: doc.dest,
       dest: doc.dest,
-      config: doc.dest,
+      config: doc.dest
     });
 
     // apply patch for doc sample ajax
     fs.copySync(
       path.join(__dirname, '../patch/send_sample_request.js'),
-      path.join(doc.dest, 'utils/send_sample_request.js'),
+      path.join(doc.dest, 'utils/send_sample_request.js')
     );
   },
 
@@ -120,9 +120,9 @@ Creator.prototype = {
               }} ${[
                 doc.create && (attr.required || attr.uniq) ? key : `[${key}]`,
                 doc.create && attr.default ? `=${attr.default}` : '',
-                attr.desc ? attr.desc : attr.type === 'instance' ? `${attr.relation} id` : '',
-              ].join(' ')}`),
-          ),
+                attr.desc ? attr.desc : attr.type === 'instance' ? `${attr.relation} id` : ''
+              ].join(' ')}`)
+          )
         );
       }
 
@@ -156,7 +156,7 @@ Creator.prototype = {
             '@apiSuccess {String} last',
             '@apiSuccess {String} prev',
             '@apiSuccess {String} next',
-            `@apiSuccess {Object[]} items Array of ${group} instance`,
+            `@apiSuccess {Object[]} items Array of ${group} instance`
           ].join('\n * ')
           : _.map(mongooseSchemas[doc.group], (schema, key) => {
             const attr = responseAttrs[doc.group][key] || {};
@@ -199,7 +199,7 @@ Creator.prototype = {
  * ${getApiParam()}
  * ${apiSuccess}
  * ${apiHeader}
- */`,
+ */`
     );
     this.docOrder.push(apiName);
   },
@@ -208,17 +208,17 @@ Creator.prototype = {
     const schemaType = {};
     const attrs = _.assign(
       {
-        id: {},
+        id: {}
       },
       _attrs,
       {
         createdAt: {
-          type: 'date',
+          type: 'date'
         },
         updatedAt: {
-          type: 'date',
-        },
-      },
+          type: 'date'
+        }
+      }
     );
 
     _.each(attrs, (attr, name) => {
@@ -235,18 +235,18 @@ Creator.prototype = {
 
       schemaType[name] = {
         type,
-        default: attr.default || null,
+        default: attr.default || null
       };
     });
 
     const schema = new this.mongoose.Schema(
       _.assign(
         {
-          q: String,
+          q: String
         },
-        schemaType,
+        schemaType
       ),
-      { minimize: false },
+      { minimize: false }
     );
     schema.index({ id: 1 });
 
@@ -314,16 +314,16 @@ Creator.prototype = {
               .replace(/\[/g, '\\[')
               .replace(/\]/g, '\\]')
               .replace(/\./g, '\\.')
-              .replace(/\*/g, '.*')}$`,
+              .replace(/\*/g, '.*')}$`
           )
           : search === 'range' && /^\[.+,.+\]$/.test(val)
             ? {
               $gte: val.match(/^\[(.+),(.+)\]$/)[1],
-              $lte: val.match(/^\[(.+),(.+)\]$/)[2],
+              $lte: val.match(/^\[(.+),(.+)\]$/)[2]
             }
             : /,/.test(val)
               ? {
-                $in: val.split(','),
+                $in: val.split(',')
               }
               : val;
     });
@@ -352,7 +352,7 @@ Creator.prototype = {
             if (instance.hasOwnProperty(key)) {
               // eslint-disable-next-line no-param-reassign
               instance[key] = {
-                href: `${prefix}/${collectionKey}/${instance.id}/${key}`,
+                href: `${prefix}/${collectionKey}/${instance.id}/${key}`
               };
             }
           });
@@ -368,7 +368,7 @@ Creator.prototype = {
                 if (expands.includes(key)) {
                   this.mongooseModels[instanceKey].findOne(
                     {
-                      id: instance[key],
+                      id: instance[key]
                     },
                     this.fields(instanceKey),
                     (err, res) => {
@@ -381,15 +381,15 @@ Creator.prototype = {
                           // eslint-disable-next-line no-param-reassign
                           instance[key] = parentCollection[0];
                           collectionCallback();
-                        },
+                        }
                       );
-                    },
+                    }
                   );
                 } else {
                   // eslint-disable-next-line no-param-reassign
                   instance[key] = {
                     href: `${prefix}/${parentCollectionKey}/${instance[key]}`,
-                    id: instance[key],
+                    id: instance[key]
                   };
                   collectionCallback();
                 }
@@ -399,7 +399,7 @@ Creator.prototype = {
             },
             () => {
               modelCallback();
-            },
+            }
           );
           break;
         case 'instance':
@@ -412,7 +412,7 @@ Creator.prototype = {
                 if (expands.includes(key)) {
                   this.mongooseModels[instanceKey].findOne(
                     {
-                      id: instance[key],
+                      id: instance[key]
                     },
                     this.fields(instanceKey),
                     (err, res) => {
@@ -425,9 +425,9 @@ Creator.prototype = {
                           // eslint-disable-next-line no-param-reassign
                           instance[key] = instanceCollection[0];
                           collectionCallback();
-                        },
+                        }
                       );
-                    },
+                    }
                   );
                 } else {
                   // eslint-disable-next-line no-param-reassign
@@ -435,7 +435,7 @@ Creator.prototype = {
                     href: instance[key]
                       ? `${prefix}/${pluralize(instanceKey)}/${instance[key]}`
                       : null,
-                    id: instance[key],
+                    id: instance[key]
                   };
                   collectionCallback();
                 }
@@ -445,7 +445,7 @@ Creator.prototype = {
             },
             () => {
               modelCallback();
-            },
+            }
           );
           break;
         default:
@@ -454,7 +454,7 @@ Creator.prototype = {
       },
       () => {
         callback(collection);
-      },
+      }
     );
   },
 
@@ -474,20 +474,20 @@ Creator.prototype = {
         process.push((callback) => {
           this.mongooseModels[key].findOne(
             {
-              id,
+              id
             },
             (err, instance) => {
               callback(
                 !instance
                   ? {
                     err: {
-                      [name]: `Specified ID (${id}) does not exists in ${key}`,
+                      [name]: `Specified ID (${id}) does not exists in ${key}`
                     },
-                    code: 400,
+                    code: 400
                   }
-                  : err,
+                  : err
               );
-            },
+            }
           );
         });
       }
@@ -505,11 +505,11 @@ Creator.prototype = {
         process.push((callback) => {
           model.findOne(
             {
-              id: req.body[key],
+              id: req.body[key]
             },
             (err, parent) => {
               callback(err, parent);
-            },
+            }
           );
         });
         process.push((parent, callback) => {
@@ -548,7 +548,7 @@ Creator.prototype = {
       url: `${prefix}/${keys}`,
       group: key,
       name: 'Get collection',
-      collection: true,
+      collection: true
     });
     this.doc({
       method: 'get',
@@ -558,8 +558,8 @@ Creator.prototype = {
       response: {},
       name: 'Get JSON Schema',
       headers: {
-        'X-JSON-Schema': 'When the header has <code>true</code>, response JSON Schema instead',
-      },
+        'X-JSON-Schema': 'When the header has <code>true</code>, response JSON Schema instead'
+      }
     });
 
     this.router.get(
@@ -596,18 +596,18 @@ Creator.prototype = {
                 {
                   skip: offset,
                   limit,
-                  sort: this.parseOrder(req.query.orderBy),
+                  sort: this.parseOrder(req.query.orderBy)
                 },
                 (err, collection) => {
                   callback(err, collection);
-                },
+                }
               );
             },
             (collection, callback) => {
               this.mongooseModels[key].count(cond, (err, size) => {
                 callback(err, collection, size);
               });
-            },
+            }
           ],
           (err, collection, size) => {
             if (err) {
@@ -641,15 +641,15 @@ Creator.prototype = {
                       size && next < size
                         ? `${prefix}/${keys}?offset=${next}&limit=${limit}`
                         : null,
-                    items,
+                    items
                   },
-                  key,
+                  key
                 );
-              },
+              }
             );
-          },
+          }
         );
-      },
+      }
     );
   },
 
@@ -674,7 +674,7 @@ Creator.prototype = {
       url: `${prefix}/${keys}`,
       group: key,
       name: 'Create instance',
-      create: true,
+      create: true
     });
 
     this.doc({
@@ -684,8 +684,8 @@ Creator.prototype = {
       name: 'Validate parameters',
       validate: true,
       headers: {
-        'X-Validation': 'When the header has <code>true</code>, validate parameters',
-      },
+        'X-Validation': 'When the header has <code>true</code>, validate parameters'
+      }
     });
 
     this.router.post(
@@ -701,7 +701,7 @@ Creator.prototype = {
             const reqInstance = {
               params: req.params,
               query: req.query,
-              body,
+              body
             };
             process.push(...this.validateRelatedDataExistance(reqInstance, model));
             process.push((callback) => {
@@ -711,9 +711,9 @@ Creator.prototype = {
                 callback({
                   err: {
                     index,
-                    ...results,
+                    ...results
                   },
-                  code: 400,
+                  code: 400
                 });
               } else {
                 callback();
@@ -747,7 +747,7 @@ Creator.prototype = {
           const params = this.params(model, {
             params: req.params,
             query: req.query,
-            body,
+            body
           });
 
           process.push((_callback) => {
@@ -755,7 +755,7 @@ Creator.prototype = {
             if (!results.ok) {
               _callback({
                 err: results,
-                code: 400,
+                code: 400
               });
             } else {
               _callback();
@@ -768,7 +768,7 @@ Creator.prototype = {
           const params = this.params(model, {
             params: req.params,
             query: req.query,
-            body,
+            body
           });
 
           process.push((_callback) => {
@@ -791,7 +791,7 @@ Creator.prototype = {
                       .replace(/[\s./]+/g, '_')
                       .toLowerCase();
                   })
-                  .join('-'),
+                  .join('-')
               );
               id = md5.digest('hex').substr(0, 7);
             } else {
@@ -809,9 +809,9 @@ Creator.prototype = {
                 instance
                   ? {
                     message: 'Duplicate id exists',
-                    code: 409,
+                    code: 409
                   }
-                  : null,
+                  : null
               );
             });
           });
@@ -829,24 +829,24 @@ Creator.prototype = {
             const instance = new Model(
               _.assign(
                 {
-                  id,
+                  id
                 },
                 params,
                 {
                   q: text,
                   createdAt: now,
-                  updatedAt: now,
-                },
-              ),
+                  updatedAt: now
+                }
+              )
             );
 
             instance.save((err) => {
               _callback(
                 err
                   ? {
-                    err,
+                    err
                   }
-                  : null,
+                  : null
               );
             });
           });
@@ -865,10 +865,10 @@ Creator.prototype = {
               {
                 items: ids.map(id => ({
                   id,
-                  href: `${prefix}/${keys}/${id}`,
-                })),
+                  href: `${prefix}/${keys}/${id}`
+                }))
               },
-              key,
+              key
             );
           } else {
             const href = `${prefix}/${keys}/${ids[0]}`;
@@ -878,13 +878,13 @@ Creator.prototype = {
               res,
               {
                 id: ids[0],
-                href,
+                href
               },
-              key,
+              key
             );
           }
         });
-      },
+      }
     );
   },
 
@@ -904,7 +904,7 @@ Creator.prototype = {
       url: `${prefix}/${keys}/:id`,
       group: key,
       name: 'Get instance',
-      model,
+      model
     });
     this.router.get(
       `${prefix}/${keys}/:id`,
@@ -922,7 +922,7 @@ Creator.prototype = {
 
               this.mongooseModels[key].findOne(
                 {
-                  id,
+                  id
                 },
                 reqFields ? `${reqFields.replace(/,/g, ' ')} -_id` : fields,
                 (err, instance) => {
@@ -930,16 +930,16 @@ Creator.prototype = {
                     !instance
                       ? {
                         err: {
-                          id: `Specified ID (${id}) does not exists in ${key}`,
+                          id: `Specified ID (${id}) does not exists in ${key}`
                         },
-                        code: 404,
+                        code: 404
                       }
                       : err,
-                    instance || {},
+                    instance || {}
                   );
-                },
+                }
               );
-            },
+            }
           ],
           (err, instance) => {
             if (err) {
@@ -954,11 +954,11 @@ Creator.prototype = {
               (req.query.expands || '').split(','),
               (instanceCollection) => {
                 after(req, res, instanceCollection[0], key);
-              },
+              }
             );
-          },
+          }
         );
-      },
+      }
     );
   },
 
@@ -986,7 +986,7 @@ Creator.prototype = {
       url: `${prefix}/${parentKeys}/:id/${key}`,
       group: parentKey,
       name: `Get ${key} collection`,
-      collection: true,
+      collection: true
     });
     this.router.get(
       `${prefix}/${parentKeys}/:id/${key}`,
@@ -1016,18 +1016,18 @@ Creator.prototype = {
                 {
                   skip: offset,
                   limit,
-                  sort: this.parseOrder(req.query.orderBy),
+                  sort: this.parseOrder(req.query.orderBy)
                 },
                 (err, collection) => {
                   callback(err, collection);
-                },
+                }
               );
             },
             (collection, callback) => {
               this.mongooseModels[attr.relation].count(cond, (err, size) => {
                 callback(err, collection, size);
               });
-            },
+            }
           ],
           (err, collection, size) => {
             if (err) {
@@ -1066,22 +1066,22 @@ Creator.prototype = {
                       size && next < size
                         ? `${prefix}/${parentKeys}/${id}/${key}?offset=${next}&limit=${limit}`
                         : null,
-                    items,
+                    items
                   },
-                  key,
+                  key
                 );
-              },
+              }
             );
-          },
+          }
         );
-      },
+      }
     );
   },
 
   validatePermission: function validatePermissionFn(model, params) {
     const uniqKeys = this.getUniqKeys(model);
     const result = {
-      ok: true,
+      ok: true
     };
 
     uniqKeys.forEach((key) => {
@@ -1107,7 +1107,7 @@ Creator.prototype = {
       method: 'post',
       url: `${prefix}/${keys}/:id`,
       group: key,
-      name: 'Update instance',
+      name: 'Update instance'
     });
     const routes = [
       `${prefix}/${keys}/:id`,
@@ -1140,16 +1140,16 @@ Creator.prototype = {
 
                 this.mongooseModels[key].findOneAndUpdate(
                   {
-                    id: req.params.id,
+                    id: req.params.id
                   },
                   _.assign(params, {
-                    updatedAt: now,
+                    updatedAt: now
                   }),
                   (err) => {
                     callback(err);
-                  },
+                  }
                 );
-              },
+              }
             ])
             .concat(this.getProcessUpdateParent(req, model, this.mongooseModels[key])),
           (err) => {
@@ -1158,9 +1158,9 @@ Creator.prototype = {
               return;
             }
             after(req, res, null, key);
-          },
+          }
         );
-      },
+      }
     ];
     this.router.post(...routes);
     this.router.patch(...routes);
@@ -1181,7 +1181,7 @@ Creator.prototype = {
       url: `${prefix}/${keys}`,
       group: key,
       name: 'Delete collection',
-      collection: true,
+      collection: true
     });
     this.router.delete(
       `${prefix}/${keys}`,
@@ -1205,10 +1205,10 @@ Creator.prototype = {
                   },
                   (err) => {
                     callback(err);
-                  },
+                  }
                 );
               });
-            },
+            }
           ],
           (err) => {
             if (err) {
@@ -1216,9 +1216,9 @@ Creator.prototype = {
               return;
             }
             after(req, res, null, key);
-          },
+          }
         );
-      },
+      }
     );
   },
 
@@ -1236,7 +1236,7 @@ Creator.prototype = {
       method: 'delete',
       url: `${prefix}/${keys}/:id`,
       group: key,
-      name: 'Delete instance',
+      name: 'Delete instance'
     });
     this.router.delete(
       `${prefix}/${keys}/:id`,
@@ -1250,13 +1250,13 @@ Creator.prototype = {
             (callback) => {
               this.mongooseModels[key].findOneAndRemove(
                 {
-                  id: req.params.id,
+                  id: req.params.id
                 },
                 (err) => {
                   callback(err);
-                },
+                }
               );
-            },
+            }
           ],
           (err) => {
             if (err) {
@@ -1264,9 +1264,9 @@ Creator.prototype = {
               return;
             }
             after(req, res, null, key);
-          },
+          }
         );
-      },
+      }
     );
   },
 
@@ -1277,7 +1277,7 @@ Creator.prototype = {
     _.uniq(paths).forEach((routePath) => {
       unroute.remove(router, routePath);
     });
-  },
+  }
 };
 
 module.exports = Creator;

@@ -3,11 +3,12 @@ module.exports = {
     res
       .status(err.code || 500)
       .json(
-        err.err ? err.err
-        : {
-          msg: err.message,
-        },
+        err.err
+          ? err.err
+          : {
+            msg: err.message
+          }
       )
       .end();
-  },
+  }
 };

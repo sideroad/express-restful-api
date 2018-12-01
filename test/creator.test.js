@@ -18,51 +18,51 @@ const schemas = {
     name: {
       uniq: true,
       pattern: /^[a-zA-Z 0-9]+$/,
-      invalid: 'Only alphabets number spaces allowed',
+      invalid: 'Only alphabets number spaces allowed'
     },
     members: {
       type: 'children',
-      relation: 'person',
+      relation: 'person'
     },
     president: {
       type: 'instance',
-      relation: 'person',
+      relation: 'person'
     },
     location: {
       type: 'string',
       pattern: /^[a-zA-Z]+$/,
-      invalid: 'Only alphabets allowed',
+      invalid: 'Only alphabets allowed'
     },
     isStockListing: {
-      type: 'boolean',
-    },
+      type: 'boolean'
+    }
   },
   person: {
     name: {
       uniq: true,
-      text: true,
+      text: true
     },
     company: {
       type: 'parent',
       relation: 'company.members',
-      text: true,
+      text: true
     },
     age: {
-      type: 'number',
-    },
+      type: 'number'
+    }
   },
   holiday: {
     name: {
       uniq: true,
-      text: true,
+      text: true
     },
     start: {
-      type: 'date',
+      type: 'date'
     },
     end: {
-      type: 'date',
-    },
-  },
+      type: 'date'
+    }
+  }
 };
 
 let creator;
@@ -72,8 +72,8 @@ describe('Creator', () => {
     mongoose.connect(
       process.env.MONGO_URL,
       {
-        useMongoClient: true,
-      },
+        useMongoClient: true
+      }
     );
     mongoose.models = {};
     mongoose.modelSchemas = {};
@@ -89,7 +89,7 @@ describe('Creator', () => {
       'company',
       { type: 'children', relation: 'person' },
       'members',
-      schemas.person,
+      schemas.person
     );
     creator.deleteInstance('company', schemas.company);
     creator.postOrPatchAsUpdate('company', schemas.company);
@@ -127,7 +127,7 @@ describe('Creator', () => {
       (err) => {
         should.not.exist(err);
         callback();
-      },
+      }
     );
   };
 
@@ -151,17 +151,17 @@ describe('Creator', () => {
     {
       name: 'Side',
       isStockListing: true,
-      location: 'Japan',
+      location: 'Japan'
     },
     {
       name: 'Road',
       isStockListing: false,
-      location: 'USA',
-    },
+      location: 'USA'
+    }
   ];
 
   const invalidCompany = {
-    name: 'Invalid_Name',
+    name: 'Invalid_Name'
   };
 
   const createCompany = (callback) => {
@@ -182,7 +182,7 @@ describe('Creator', () => {
       (err) => {
         should.not.exist(err);
         callback();
-      },
+      }
     );
   };
 
@@ -191,7 +191,7 @@ describe('Creator', () => {
       .post('/api/companies')
       .type('json')
       .send({
-        items: validCompanies,
+        items: validCompanies
       })
       .expect(201)
       .end((err, res) => {
@@ -199,12 +199,12 @@ describe('Creator', () => {
         res.body.should.have.property('items', [
           {
             href: '/api/companies/side',
-            id: 'side',
+            id: 'side'
           },
           {
             href: '/api/companies/road',
-            id: 'road',
-          },
+            id: 'road'
+          }
         ]);
 
         callback(err);
@@ -216,9 +216,9 @@ describe('Creator', () => {
       [
         invalidCompany,
         {
-          name: '',
+          name: ''
         },
-        {},
+        {}
       ],
       (data, mapCallback) => {
         request(app)
@@ -235,7 +235,7 @@ describe('Creator', () => {
       (err) => {
         should.not.exist(err);
         callback();
-      },
+      }
     );
   };
 
@@ -247,10 +247,10 @@ describe('Creator', () => {
         items: [
           invalidCompany,
           {
-            name: '',
+            name: ''
           },
-          {},
-        ],
+          {}
+        ]
       })
       .expect(400)
       .end((err, res) => {
@@ -265,8 +265,8 @@ describe('Creator', () => {
       [
         {
           name: 'sideroad',
-          president: 'notexist',
-        },
+          president: 'notexist'
+        }
       ],
       (data, mapCallback) => {
         request(app)
@@ -278,7 +278,7 @@ describe('Creator', () => {
             should.not.exist(err);
             res.body.should.have.property(
               'president',
-              'Specified ID (notexist) does not exists in person',
+              'Specified ID (notexist) does not exists in person'
             );
             mapCallback(err);
           });
@@ -286,7 +286,7 @@ describe('Creator', () => {
       (err) => {
         should.not.exist(err);
         callback();
-      },
+      }
     );
   };
 
@@ -307,7 +307,7 @@ describe('Creator', () => {
       (err) => {
         should.not.exist(err);
         callback();
-      },
+      }
     );
   };
 
@@ -316,7 +316,7 @@ describe('Creator', () => {
       .post('/api/companies')
       .set('X-Validation', 'true')
       .send({
-        items: validCompanies,
+        items: validCompanies
       })
       .expect(200)
       .end((err) => {
@@ -344,7 +344,7 @@ describe('Creator', () => {
       .post('/api/companies')
       .set('X-Validation', 'true')
       .send({
-        items: [invalidCompany],
+        items: [invalidCompany]
       })
       .expect(400)
       .end((err, res) => {
@@ -361,18 +361,18 @@ describe('Creator', () => {
         {
           name: 'sideroad',
           company: 'side',
-          age: 32,
+          age: 32
         },
         {
           name: 'roadside',
           company: 'road',
-          age: 30.0000005,
+          age: 30.0000005
         },
         {
           name: 'foobar',
           company: 'road',
-          age: 40,
-        },
+          age: 40
+        }
       ],
       (data, mapCallback) => {
         request(app)
@@ -388,7 +388,7 @@ describe('Creator', () => {
       (err) => {
         should.not.exist(err);
         callback();
-      },
+      }
     );
   };
 
@@ -398,8 +398,8 @@ describe('Creator', () => {
         {
           name: 'sideroad',
           company: 'notexist',
-          age: 32,
-        },
+          age: 32
+        }
       ],
       (data, mapCallback) => {
         request(app)
@@ -411,7 +411,7 @@ describe('Creator', () => {
             should.not.exist(err);
             res.body.should.have.property(
               'company',
-              'Specified ID (notexist) does not exists in company',
+              'Specified ID (notexist) does not exists in company'
             );
             mapCallback(err);
           });
@@ -419,7 +419,7 @@ describe('Creator', () => {
       (err) => {
         should.not.exist(err);
         callback();
-      },
+      }
     );
   };
 
@@ -430,14 +430,14 @@ describe('Creator', () => {
           name: 'duplicator',
           company: 'side',
           age: 32,
-          index: 1,
+          index: 1
         },
         {
           name: 'duplicator',
           company: 'side',
           age: 32,
-          index: 2,
-        },
+          index: 2
+        }
       ],
       (data, mapCallback) => {
         request(app)
@@ -469,7 +469,7 @@ describe('Creator', () => {
             res.body.items[0].company.should.have.property('id', 'side');
             callback();
           });
-      },
+      }
     );
   };
 
@@ -479,18 +479,18 @@ describe('Creator', () => {
         {
           name: 'New Year',
           start: '2016-01-01',
-          end: '2016-01-03',
+          end: '2016-01-03'
         },
         {
           name: 'Coming of Age Day',
           start: '2016-01-11',
-          end: '2016-01-11',
+          end: '2016-01-11'
         },
         {
           name: 'Golden Week',
           start: '2016-04-29',
-          end: '2016-05-05',
-        },
+          end: '2016-05-05'
+        }
       ],
       (data, mapCallback) => {
         request(app)
@@ -506,7 +506,7 @@ describe('Creator', () => {
       (err) => {
         should.not.exist(err);
         callback();
-      },
+      }
     );
   };
 
@@ -524,14 +524,14 @@ describe('Creator', () => {
 
   it('should return sort object for mongoose', (done) => {
     creator.parseOrder('company').should.deepEqual({
-      company: 1,
+      company: 1
     });
     creator.parseOrder('+company').should.deepEqual({
-      company: 1,
+      company: 1
     });
     creator.parseOrder('+company,-person').should.deepEqual({
       company: 1,
-      person: -1,
+      person: -1
     });
     done();
   });
@@ -547,15 +547,15 @@ describe('Creator', () => {
               {
                 id: 'side',
                 name: 'Side',
-                president: 'sideroad',
-              },
+                president: 'sideroad'
+              }
             ],
             [],
             (collection) => {
               collection[0].president.should.have.property('href', '/api/people/sideroad');
               collection[0].president.should.have.property('id', 'sideroad');
               done();
-            },
+            }
           );
         });
       });
@@ -571,15 +571,15 @@ describe('Creator', () => {
               {
                 id: 'side',
                 name: 'Side',
-                president: 'sideroad',
-              },
+                president: 'sideroad'
+              }
             ],
             ['president'],
             (collection) => {
               collection[0].president.should.have.property('name', 'sideroad');
               collection[0].president.should.have.property('id', 'sideroad');
               done();
-            },
+            }
           );
         });
       });
@@ -595,15 +595,15 @@ describe('Creator', () => {
               {
                 name: 'sideroad',
                 company: 'side',
-                age: 32,
-              },
+                age: 32
+              }
             ],
             ['company'],
             (collection) => {
               collection[0].company.should.have.property('name', 'Side');
               collection[0].company.should.have.property('id', 'side');
               done();
-            },
+            }
           );
         });
       });
@@ -656,11 +656,11 @@ describe('Creator', () => {
                       res.body.items[0].company.should.have.property('id', 'road');
                       callback();
                     });
-                },
+                }
               ],
               () => {
                 done();
-              },
+              }
             );
           });
         });
@@ -1143,11 +1143,11 @@ describe('Creator', () => {
               res.body.items.length.should.equal(1);
               callback();
             });
-        },
+        }
       ],
       (err) => {
         done(err);
-      },
+      }
     );
   });
 
@@ -1195,11 +1195,11 @@ describe('Creator', () => {
               res.body.required[0].should.equal('name');
               callback();
             });
-        },
+        }
       ],
       (err) => {
         done(err);
-      },
+      }
     );
   });
 
@@ -1252,11 +1252,11 @@ describe('Creator', () => {
 
               callback();
             });
-        },
+        }
       ],
       (err) => {
         done(err);
-      },
+      }
     );
   });
 
@@ -1295,11 +1295,11 @@ describe('Creator', () => {
               res.body.should.have.property('limit', 25);
               res.body.should.have.property(
                 'first',
-                '/api/companies/side/members?offset=0&limit=25',
+                '/api/companies/side/members?offset=0&limit=25'
               );
               res.body.should.have.property(
                 'last',
-                '/api/companies/side/members?offset=0&limit=25',
+                '/api/companies/side/members?offset=0&limit=25'
               );
               res.body.should.have.property('next', null);
               res.body.should.have.property('prev', null);
@@ -1323,11 +1323,11 @@ describe('Creator', () => {
               res.body.should.have.property('limit', 25);
               res.body.should.have.property(
                 'first',
-                '/api/companies/side/members?offset=0&limit=25',
+                '/api/companies/side/members?offset=0&limit=25'
               );
               res.body.should.have.property(
                 'last',
-                '/api/companies/side/members?offset=0&limit=25',
+                '/api/companies/side/members?offset=0&limit=25'
               );
               res.body.should.have.property('next', null);
               res.body.should.have.property('prev', null);
@@ -1350,11 +1350,11 @@ describe('Creator', () => {
               res.body.should.have.property('limit', 25);
               res.body.should.have.property(
                 'first',
-                '/api/companies/road/members?offset=0&limit=25',
+                '/api/companies/road/members?offset=0&limit=25'
               );
               res.body.should.have.property(
                 'last',
-                '/api/companies/road/members?offset=0&limit=25',
+                '/api/companies/road/members?offset=0&limit=25'
               );
               res.body.should.have.property('next', null);
               res.body.should.have.property('prev', null);
@@ -1365,11 +1365,11 @@ describe('Creator', () => {
               res.body.items[1].should.have.property('name', 'roadside');
               callback();
             });
-        },
+        }
       ],
       (err) => {
         done(err);
-      },
+      }
     );
   });
 
@@ -1397,11 +1397,11 @@ describe('Creator', () => {
               res.body.should.have.property('id', 'Specified ID (side) does not exists in company');
               callback();
             });
-        },
+        }
       ],
       (err) => {
         done(err);
-      },
+      }
     );
   });
 
@@ -1520,7 +1520,7 @@ describe('Creator', () => {
               should.not.exist(err);
               res.body.should.have.property(
                 'president',
-                'Specified ID (notexist) does not exists in person',
+                'Specified ID (notexist) does not exists in person'
               );
               callback();
             });
@@ -1535,7 +1535,7 @@ describe('Creator', () => {
               should.not.exist(err);
               res.body.should.have.property(
                 'president',
-                'Specified ID (notexist) does not exists in person',
+                'Specified ID (notexist) does not exists in person'
               );
               callback();
             });
@@ -1595,11 +1595,11 @@ describe('Creator', () => {
               res.body.members.should.have.property('href', '/api/companies/side/members');
               callback();
             });
-        },
+        }
       ],
       (err) => {
         done(err);
-      },
+      }
     );
   });
 
@@ -1615,9 +1615,9 @@ describe('Creator', () => {
       sampleUrl: 'https://express-restful-api-sample.herokuapp.com',
       template: {
         withCompare: false,
-        withGenerator: true,
+        withGenerator: true
       },
-      dest,
+      dest
     });
 
     const comments = fs.readFileSync(path.join(dest, 'apicomment.js'));
