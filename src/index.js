@@ -1,12 +1,13 @@
 import express from 'express';
 import _ from 'lodash';
-import mongoose from 'mongoose';
 import Creator from './creator';
 
 module.exports = {
   router: function routerFn(options) {
     const router = express.Router();
-    const { schemas, prefix, before, after, client, secret } = options;
+    const {
+      schemas, prefix, before, after, client, secret,
+    } = options;
     const applyChildren = (creator, key, schema, model) => {
       _.each(model, (attr, childKey) => {
         if (attr.type === 'children') {
@@ -16,10 +17,7 @@ module.exports = {
     };
 
     const creator = new Creator({
-      mongoose:
-        typeof options.mongo === 'string'
-          ? mongoose.connect(options.mongo) || mongoose
-          : options.mongo,
+      connectionString: options.mongo,
       router,
       prefix,
       before,

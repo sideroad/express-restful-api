@@ -1,5 +1,6 @@
 import _ from 'lodash';
 import moment from 'moment';
+import mongoose from 'mongoose';
 import async from 'async';
 import path from 'path';
 import fs from 'fs-extra';
@@ -13,7 +14,7 @@ import resutils from './resutils';
 import { schemefy } from './json-scheme';
 
 const Creator = function constructor({
-  mongoose,
+  connectionString,
   router,
   prefix,
   before,
@@ -22,7 +23,7 @@ const Creator = function constructor({
   secret,
   schemas
 }) {
-  this.mongoose = mongoose;
+  this.connectionString = connectionString;
   this.mongooseModels = {};
   this.mongooseSchemas = {};
   this.router = router;
@@ -73,7 +74,7 @@ const Creator = function constructor({
 
 Creator.prototype = {
   createDoc: function createDocfn(_doc) {
-    const doc = _.assign(
+    const doc = Object.assign(
       {
         order: this.docOrder
       },
@@ -205,7 +206,7 @@ Creator.prototype = {
 
   model: function modelFn(key, _attrs) {
     const schemaType = {};
-    const attrs = _.assign(
+    const attrs = Object.assign(
       {
         id: {}
       },
@@ -237,8 +238,10 @@ Creator.prototype = {
       };
     });
 
-    const schema = new this.mongoose.Schema(
-      _.assign(
+    mongoose.connect(this.connectionString);
+
+    const schema = new mongoose.Schema(
+      Object.assign(
         {
           q: String
         },
@@ -248,7 +251,7 @@ Creator.prototype = {
     );
     schema.index({ id: 1 });
 
-    const model = this.mongoose.model((this.prefix + key).replace(/\//g, '_'), schema);
+    const model = new mongoose.model((this.prefix + key).replace(/\//g, '_'), schema);
     this.mongooseModels[key] = model;
     this.mongooseSchemas[key] = schemaType;
     this.responseAttrs[key] = attrs;
@@ -624,7 +627,7 @@ Creator.prototype = {
                     size,
                     first: size ? `${prefix}/${keys}?offset=0&limit=${limit}` : null,
                     last: size
-                      ? `${prefix}/${keys}?offset=${Math.ceil(size / limit) - 1 * limit}&limit=${limit}`
+                      ? `${prefix}/${keys}?offset=${(Math.ceil(size / limit) - 1) * limit}&limit=${limit}`
                       : null,
                     prev:
                       size && offset !== 0
@@ -818,7 +821,7 @@ Creator.prototype = {
             const now = moment().format();
             const Model = this.mongooseModels[key];
             const instance = new Model(
-              _.assign(
+              Object.assign(
                 {
                   id
                 },
@@ -1039,9 +1042,7 @@ Creator.prototype = {
                       ? `${prefix}/${parentKeys}/${id}/${key}?offset=0&limit=${limit}`
                       : null,
                     last: size
-                      ? `${prefix}/${parentKeys}/${id}/${key}?offset=${(Math.ceil(size / limit)
-                          - 1)
-                          * limit}&limit=${limit}`
+                      ? `${prefix}/${parentKeys}/${id}/${key}?offset=${(Math.ceil(size / limit) - 1) * limit}&limit=${limit}`
                       : null,
                     prev:
                       size && offset !== 0
