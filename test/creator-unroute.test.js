@@ -6,6 +6,8 @@ import async from 'async';
 import request from 'supertest';
 import Creator from '../src/creator';
 
+mongoose.Promise = Promise;
+
 const app = express();
 const router = express.Router();
 const schema = {
@@ -13,55 +15,60 @@ const schema = {
     name: {
       uniq: true,
       pattern: /^[a-zA-Z 0-9]+$/,
-      invalid: 'Only alphabets number spaces allowed',
+      invalid: 'Only alphabets number spaces allowed'
     },
     members: {
       type: 'children',
-      relation: 'person',
+      relation: 'person'
     },
     president: {
       type: 'instance',
-      relation: 'person',
+      relation: 'person'
     },
     location: {
       type: 'string',
       pattern: /^[a-zA-Z]+$/,
-      invalid: 'Only alphabets allowed',
-    },
+      invalid: 'Only alphabets allowed'
+    }
   },
   person: {
     name: {
       uniq: true,
-      text: true,
+      text: true
     },
     company: {
       type: 'parent',
       relation: 'company.members',
-      text: true,
+      text: true
     },
     age: {
-      type: 'number',
-    },
+      type: 'number'
+    }
   },
   holiday: {
     name: {
       uniq: true,
-      text: true,
+      text: true
     },
     start: {
-      type: 'date',
+      type: 'date'
     },
     end: {
-      type: 'date',
-    },
-  },
+      type: 'date'
+    }
+  }
 };
 
 let creator;
 
 describe('Creator Unroute', () => {
   before(() => {
-    mongoose.connect(process.env.MONGO_URL);
+    mongoose.connect(
+      process.env.MONGO_URL,
+      {
+        useMongoClient: true
+      }
+    );
     mongoose.models = {};
     mongoose.modelSchemas = {};
     creator = new Creator({ mongoose, router, prefix: '/api' });
@@ -71,7 +78,12 @@ describe('Creator Unroute', () => {
     creator.model('company', schema.company);
     creator.getInstance('company', schema.company);
     creator.getCollection('company', schema.company);
-    creator.getChildren('company', { type: 'children', relation: 'person' }, 'members', schema.person);
+    creator.getChildren(
+      'company',
+      { type: 'children', relation: 'person' },
+      'members',
+      schema.person
+    );
     creator.postInstanceOrCollection('company', schema.company);
     creator.deleteCollection('company', schema.company);
 
@@ -94,18 +106,21 @@ describe('Creator Unroute', () => {
 
   it('should unroute router', (done) => {
     creator.unroute();
-    async.waterfall([
-      (callback) => {
-        request(app)
-          .get('/api/companies')
-          .expect(404)
-          .end((err) => {
-            should.not.exist(err);
-            callback();
-          });
-      },
-    ], (err) => {
-      done(err);
-    });
+    async.waterfall(
+      [
+        (callback) => {
+          request(app)
+            .get('/api/companies')
+            .expect(404)
+            .end((err) => {
+              should.not.exist(err);
+              callback();
+            });
+        }
+      ],
+      (err) => {
+        done(err);
+      }
+    );
   });
 });

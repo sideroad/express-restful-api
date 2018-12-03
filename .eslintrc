@@ -2,6 +2,7 @@
   "extends": "airbnb",
   "rules": {
     "no-nested-ternary": 0,
+    "comma-dangle": ["error", "never"],
     "indent": ["error", 2, { "flatTernaryExpressions": true }],
     "no-prototype-builtins": 0
   },
