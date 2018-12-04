@@ -1,6 +1,5 @@
 import _ from 'lodash';
 import moment from 'moment';
-import mongoose from 'mongoose';
 import async from 'async';
 import path from 'path';
 import fs from 'fs-extra';
@@ -14,7 +13,7 @@ import resutils from './resutils';
 import { schemefy } from './json-scheme';
 
 const Creator = function constructor({
-  connectionString,
+  mongoose,
   router,
   prefix,
   before,
@@ -23,7 +22,7 @@ const Creator = function constructor({
   secret,
   schemas
 }) {
-  this.connectionString = connectionString;
+  this.mongoose = mongoose;
   this.mongooseModels = {};
   this.mongooseSchemas = {};
   this.router = router;
@@ -239,9 +238,7 @@ Creator.prototype = {
       };
     });
 
-    mongoose.connect(this.connectionString);
-
-    const schema = new mongoose.Schema(
+    const schema = new this.mongoose.Schema(
       Object.assign(
         {
           q: String
@@ -252,7 +249,7 @@ Creator.prototype = {
     );
     schema.index({ id: 1 });
 
-    const model = new mongoose.model((this.prefix + key).replace(/\//g, '_'), schema);
+    const model = this.mongoose.model((this.prefix + key).replace(/\//g, '_'), schema);
     this.mongooseModels[key] = model;
     this.mongooseSchemas[key] = schemaType;
     this.responseAttrs[key] = attrs;

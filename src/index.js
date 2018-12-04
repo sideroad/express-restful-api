@@ -1,5 +1,6 @@
 import express from 'express';
 import _ from 'lodash';
+import mongoose from 'mongoose';
 import Creator from './creator';
 
 module.exports = {
@@ -17,7 +18,10 @@ module.exports = {
     };
 
     const creator = new Creator({
-      connectionString: options.mongo,
+      mongoose:
+        typeof options.mongo === 'string'
+          ? mongoose.connect(options.mongo) || mongoose
+          : options.mongo,
       router,
       prefix,
       before,
