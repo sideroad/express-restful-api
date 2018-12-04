@@ -37,7 +37,7 @@ var router = creator.router({
         uniq: true,
         required: true,
         pattern: /^[a-zA-Z _]+$/,
-        resoure: 'id'
+        resource: 'id'
       },
       company: {
         type: 'parent',

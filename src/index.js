@@ -6,7 +6,7 @@ module.exports = {
   router: function routerFn(options) {
     const router = express.Router();
     const {
-      schemas, prefix, before, after, client, secret,
+      schemas, prefix, before, after, client, secret
     } = options;
     const applyChildren = (creator, key, schema, model) => {
       _.each(model, (attr, childKey) => {

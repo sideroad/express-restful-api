@@ -33,25 +33,24 @@ const Creator = function constructor({
   this.responseAttrs = {};
   this.docs = [];
   this.docOrder = [];
-  this.auth =
-    client && secret
-      ? (req, res, next) => {
-        if (
-          req.headers['x-chaus-secret'] === secret &&
-            req.headers['x-chaus-client'] === client
-        ) {
-          next();
-        } else {
-          resutils.error(res, {
-            code: 400,
-            message: 'x-chaus-secret and / or x-chaus-client header are invalid'
-          });
-        }
-      }
-      : (req, res, next) => {
+  this.auth = client && secret
+    ? (req, res, next) => {
+      if (
+        req.headers['x-chaus-secret'] === secret
+        && req.headers['x-chaus-client'] === client
+      ) {
         next();
+      } else {
+        resutils.error(res, {
+          code: 400,
+          message: 'x-chaus-secret and / or x-chaus-client header are invalid'
+        });
       }
     }
+    : (req, res, next) => {
+      next();
+    };
+
   this.before = before
     ? (req, res, next, key) => {
       before(req, res, next, key, this.mongooseModels);
@@ -112,8 +111,8 @@ Creator.prototype = {
 
       if (doc.method === 'post' || doc.collection || doc.validate) {
         params = params.concat(
-          _.map(requestAttrs[doc.group], (attr, key) =>
-            (attr.type === 'children'
+          _.map(requestAttrs[doc.group], (attr, key) => (
+            attr.type === 'children'
               ? ''
               : `@apiParam {${
                 attr.type === 'number' ? 'Number' : attr.type === 'boolean' ? 'Boolean' : 'String'
@@ -121,13 +120,13 @@ Creator.prototype = {
                 doc.create && (attr.required || attr.uniq) ? key : `[${key}]`,
                 doc.create && attr.default ? `=${attr.default}` : '',
                 attr.desc ? attr.desc : attr.type === 'instance' ? `${attr.relation} id` : ''
-              ].join(' ')}`)
-          )
+              ].join(' ')}`
+          ))
         );
       }
 
       if (doc.method === 'get' && !doc.validate) {
-        params.push('@apiParam {String} [fields] Pertial attribution will be responsed.');
+        params.push('@apiParam {String} [fields] Partial attribution will be responded.');
         params.push('Attributions should be separated with comma.');
       }
 
@@ -191,19 +190,19 @@ Creator.prototype = {
       : _.map(doc.headers, (value, header) => `@apiHeader {String} ${header} ${value}`);
 
     this.docs.push(
-      `
-/**
- * @api {${doc.method}} ${doc.url} ${doc.name}
- * @apiName ${apiName}
- * @apiGroup ${group}
- * ${getApiParam()}
- * ${apiSuccess}
- * ${apiHeader}
- */`
+      `/**
+       * @api {${doc.method}} ${doc.url} ${doc.name}
+       * @apiName ${apiName}
+       * @apiGroup ${group}
+       * ${getApiParam()}
+       * ${apiSuccess}
+       * ${apiHeader}
+       */`
     );
     this.docOrder.push(apiName);
   },
 
+  // Define schema and compile model
   model: function modelFn(key, _attrs) {
     const schemaType = {};
     const attrs = Object.assign(
@@ -213,10 +212,12 @@ Creator.prototype = {
       _attrs,
       {
         createdAt: {
-          type: 'date'
+          type: 'date',
+          default: Date.now
         },
         updatedAt: {
-          type: 'date'
+          type: 'date',
+          default: Date.now
         }
       }
     );
@@ -307,25 +308,24 @@ Creator.prototype = {
       const search = type === 'number' || type === 'date' ? 'range' : 'wildcard';
 
       const val = _val && _val.length ? _val : '';
-      cond[key] =
-        search === 'wildcard' && /\*/.test(val)
-          ? new RegExp(
-            `^${val
-              .replace(/\[/g, '\\[')
-              .replace(/\]/g, '\\]')
-              .replace(/\./g, '\\.')
-              .replace(/\*/g, '.*')}$`
-          )
-          : search === 'range' && /^\[.+,.+\]$/.test(val)
+      cond[key] = search === 'wildcard' && /\*/.test(val)
+        ? new RegExp(
+          `^${val
+            .replace(/\[/g, '\\[')
+            .replace(/\]/g, '\\]')
+            .replace(/\./g, '\\.')
+            .replace(/\*/g, '.*')}$`
+        )
+        : search === 'range' && /^\[.+,.+\]$/.test(val)
+          ? {
+            $gte: val.match(/^\[(.+),(.+)\]$/)[1],
+            $lte: val.match(/^\[(.+),(.+)\]$/)[2]
+          }
+          : /,/.test(val)
             ? {
-              $gte: val.match(/^\[(.+),(.+)\]$/)[1],
-              $lte: val.match(/^\[(.+),(.+)\]$/)[2]
+              $in: val.split(',')
             }
-            : /,/.test(val)
-              ? {
-                $in: val.split(',')
-              }
-              : val;
+            : val;
     });
 
     if (req.query.q) {
