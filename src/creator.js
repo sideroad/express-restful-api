@@ -222,7 +222,10 @@ Creator.prototype = {
     );
 
     _.each(attrs, (attr, name) => {
-      const type = attr.type === 'number'
+      const type = attr.type === 'geometry' ? {
+        type: String,
+        enum: ['Point']
+      } : attr.type === 'number'
         ? Number
         : attr.type === 'boolean'
           ? Boolean
@@ -232,10 +235,25 @@ Creator.prototype = {
               ? Array
               : String;
 
-      schemaType[name] = {
+      let schemaDefinition = {
         type,
         default: attr.default || null
       };
+
+      if (attr.type === 'geometry') {
+        schemaDefinition = Object.assign(
+          schemaDefinition,
+          {
+            coordinates: {
+              type: [Number]
+            }
+          }
+        );
+
+        delete schemaDefinition.default;
+      }
+
+      schemaType[name] = schemaDefinition;
     });
 
     const schema = new this.mongoose.Schema(
