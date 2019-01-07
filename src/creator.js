@@ -265,9 +265,12 @@ Creator.prototype = {
       ),
       { minimize: false }
     );
-    schema.index({ id: 1 });
+    schema.index({ id: 1, address: '2dsphere' });
 
     const model = this.mongoose.model((this.prefix + key).replace(/\//g, '_'), schema);
+    // if (attrs.some(attr => attr.type === 'geometry')) {
+    // model.index({ address: '2dsphere' });
+    // }
     this.mongooseModels[key] = model;
     this.mongooseSchemas[key] = schemaType;
     this.responseAttrs[key] = attrs;
@@ -320,27 +323,41 @@ Creator.prototype = {
 
     _.each(params, (_val, key) => {
       const { type } = (model[key] || {});
-      const search = type === 'number' || type === 'date' ? 'range' : 'wildcard';
+      const search = type === 'geometry'
+        ? 'geometry'
+        : type === 'number' || type === 'date'
+          ? 'range'
+          : 'wildcard';
 
       const val = _val && _val.length ? _val : '';
-      cond[key] = search === 'wildcard' && /\*/.test(val)
-        ? new RegExp(
-          `^${val
-            .replace(/\[/g, '\\[')
-            .replace(/\]/g, '\\]')
-            .replace(/\./g, '\\.')
-            .replace(/\*/g, '.*')}$`
-        )
-        : search === 'range' && /^\[.+,.+\]$/.test(val)
-          ? {
-            $gte: val.match(/^\[(.+),(.+)\]$/)[1],
-            $lte: val.match(/^\[(.+),(.+)\]$/)[2]
-          }
-          : /,/.test(val)
-            ? {
-              $in: val.split(',')
+      cond[key] = search === 'geometry'
+        ? {
+          $near: {
+            $maxDistance: val.split(',')[2],
+            $geometry: {
+              type: 'Point',
+              coordinates: [val.split(',')[1], val.split(',')[0]]
             }
-            : val;
+          }
+        }
+        : search === 'wildcard' && /\*/.test(val)
+          ? new RegExp(
+            `^${val
+              .replace(/\[/g, '\\[')
+              .replace(/\]/g, '\\]')
+              .replace(/\./g, '\\.')
+              .replace(/\*/g, '.*')}$`
+          )
+          : search === 'range' && /^\[.+,.+\]$/.test(val)
+            ? {
+              $gte: val.match(/^\[(.+),(.+)\]$/)[1],
+              $lte: val.match(/^\[(.+),(.+)\]$/)[2]
+            }
+            : /,/.test(val)
+              ? {
+                $in: val.split(',')
+              }
+              : val;
     });
 
     if (req.query.q) {
