@@ -265,12 +265,15 @@ Creator.prototype = {
       ),
       { minimize: false }
     );
-    schema.index({ id: 1, address: '2dsphere' });
+    let indexAttrs = {};
+    _.each(attrs, (attr, name) => {
+      if (attr.type === 'geometry') {
+        indexAttrs = Object.assign(indexAttrs, { [name]: '2dsphere' });
+      }
+    });
+    schema.index(indexAttrs);
 
     const model = this.mongoose.model((this.prefix + key).replace(/\//g, '_'), schema);
-    // if (attrs.some(attr => attr.type === 'geometry')) {
-    // model.index({ address: '2dsphere' });
-    // }
     this.mongooseModels[key] = model;
     this.mongooseSchemas[key] = schemaType;
     this.responseAttrs[key] = attrs;
