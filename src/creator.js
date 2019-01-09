@@ -370,7 +370,16 @@ Creator.prototype = {
   },
 
   toObject: function toObjectFn(collection) {
-    return _.map(collection, instance => (instance.toObject ? instance.toObject() : instance));
+    return _.map(collection, instance => (instance.toObject ? instance.toObject() : instance))
+      .map((object) => {
+        const obj = object;
+        _.each(object, (attr, name) => {
+          if (attr.type && attr.type === 'Point') {
+            obj[name] = attr.coordinates;
+          }
+        });
+        return obj;
+      });
   },
 
   makeRelation: function makeRelationFn(model, collectionKey, _collection, expands, callback) {
