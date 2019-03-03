@@ -234,26 +234,11 @@ Creator.prototype = {
             : attr.type === 'children'
               ? Array
               : String;
-
-      let schemaDefinition = {
-        type,
-        default: attr.default || null
+      schemaType[name] = attr.type === 'geometry' ? {
+        type, coordinates: { type: [Number] }
+      } : {
+        type, default: attr.default || null
       };
-
-      if (attr.type === 'geometry') {
-        schemaDefinition = Object.assign(
-          schemaDefinition,
-          {
-            coordinates: {
-              type: [Number]
-            }
-          }
-        );
-
-        delete schemaDefinition.default;
-      }
-
-      schemaType[name] = schemaDefinition;
     });
 
     const schema = new this.mongoose.Schema(
