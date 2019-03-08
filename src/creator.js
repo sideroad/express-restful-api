@@ -250,7 +250,7 @@ Creator.prototype = {
       ),
       { minimize: false }
     );
-    let indexAttrs = {};
+    let indexAttrs = { id: 1 };
     _.each(attrs, (attr, name) => {
       if (attr.type === 'geometry') {
         indexAttrs = Object.assign(indexAttrs, { [name]: '2dsphere' });
