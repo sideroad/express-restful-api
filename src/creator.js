@@ -222,7 +222,10 @@ Creator.prototype = {
     );
 
     _.each(attrs, (attr, name) => {
-      const type = attr.type === 'number'
+      const type = attr.type === 'geometry' ? {
+        type: String,
+        enum: ['Point']
+      } : attr.type === 'number'
         ? Number
         : attr.type === 'boolean'
           ? Boolean
@@ -231,10 +234,10 @@ Creator.prototype = {
             : attr.type === 'children'
               ? Array
               : String;
-
-      schemaType[name] = {
-        type,
-        default: attr.default || null
+      schemaType[name] = attr.type === 'geometry' ? {
+        type, coordinates: { type: [Number] }
+      } : {
+        type, default: attr.default || null
       };
     });
 
@@ -247,7 +250,13 @@ Creator.prototype = {
       ),
       { minimize: false }
     );
-    schema.index({ id: 1 });
+    let indexAttrs = { id: 1 };
+    _.each(attrs, (attr, name) => {
+      if (attr.type === 'geometry') {
+        indexAttrs = Object.assign(indexAttrs, { [name]: '2dsphere' });
+      }
+    });
+    schema.index(indexAttrs);
 
     const model = this.mongoose.model((this.prefix + key).replace(/\//g, '_'), schema);
     this.mongooseModels[key] = model;
@@ -302,27 +311,41 @@ Creator.prototype = {
 
     _.each(params, (_val, key) => {
       const { type } = (model[key] || {});
-      const search = type === 'number' || type === 'date' ? 'range' : 'wildcard';
+      const search = type === 'geometry'
+        ? 'geometry'
+        : type === 'number' || type === 'date'
+          ? 'range'
+          : 'wildcard';
 
       const val = _val && _val.length ? _val : '';
-      cond[key] = search === 'wildcard' && /\*/.test(val)
-        ? new RegExp(
-          `^${val
-            .replace(/\[/g, '\\[')
-            .replace(/\]/g, '\\]')
-            .replace(/\./g, '\\.')
-            .replace(/\*/g, '.*')}$`
-        )
-        : search === 'range' && /^\[.+,.+\]$/.test(val)
-          ? {
-            $gte: val.match(/^\[(.+),(.+)\]$/)[1],
-            $lte: val.match(/^\[(.+),(.+)\]$/)[2]
-          }
-          : /,/.test(val)
-            ? {
-              $in: val.split(',')
+      cond[key] = search === 'geometry'
+        ? {
+          $near: {
+            $maxDistance: val.split(',')[2],
+            $geometry: {
+              type: 'Point',
+              coordinates: [val.split(',')[1], val.split(',')[0]]
             }
-            : val;
+          }
+        }
+        : search === 'wildcard' && /\*/.test(val)
+          ? new RegExp(
+            `^${val
+              .replace(/\[/g, '\\[')
+              .replace(/\]/g, '\\]')
+              .replace(/\./g, '\\.')
+              .replace(/\*/g, '.*')}$`
+          )
+          : search === 'range' && /^\[.+,.+\]$/.test(val)
+            ? {
+              $gte: val.match(/^\[(.+),(.+)\]$/)[1],
+              $lte: val.match(/^\[(.+),(.+)\]$/)[2]
+            }
+            : /,/.test(val)
+              ? {
+                $in: val.split(',')
+              }
+              : val;
     });
 
     if (req.query.q) {
@@ -332,7 +355,16 @@ Creator.prototype = {
   },
 
   toObject: function toObjectFn(collection) {
-    return _.map(collection, instance => (instance.toObject ? instance.toObject() : instance));
+    return _.map(collection, instance => (instance.toObject ? instance.toObject() : instance))
+      .map((object) => {
+        const obj = object;
+        _.each(object, (attr, name) => {
+          if (attr.type && attr.type === 'Point') {
+            obj[name] = attr.coordinates;
+          }
+        });
+        return obj;
+      });
   },
 
   makeRelation: function makeRelationFn(model, collectionKey, _collection, expands, callback) {
